@@ -3,9 +3,73 @@
 @tailwind utilities;
 
 :root {
-  --mha-pink: #C6007E;
-  --mha-blue: #1C6280;
-  --mha-light-blue: #E5F0F8;
+  /* Brand Colors */
+  --mha-pink: #d4007f;
+  --mha-pink-dark: #b3006b;
+  --mha-pink-60: #e166b2;
+  --mha-pink-30: #f0b2d9;
+  --mha-pink-10: #fae5f2;
+  
+  --mha-blue: #217593;
+  --mha-blue-60: #7aadbe;
+  --mha-blue-30: #bcd6e0;
+  --mha-blue-10: #e8f2f6;
+  --mha-light-blue: #a7c9d7;
+  
+  --mha-teal: #6bbbae;
+  --mha-teal-60: #a5d6ce;
+  --mha-teal-30: #d2ebe7;
+  --mha-teal-10: #f0f9f7;
+  
+  /* Font Sizes */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-md: 1.125rem;   /* 18px */
+  --font-size-lg: 1.25rem;    /* 20px */
+  --font-size-xl: 1.5rem;     /* 24px */
+  --font-size-2xl: 1.875rem;  /* 30px */
+  
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;      /* 4px */
+  --spacing-sm: 0.5rem;       /* 8px */
+  --spacing-md: 1rem;         /* 16px */
+  --spacing-lg: 1.5rem;       /* 24px */
+  --spacing-xl: 2rem;         /* 32px */
+  
+  /* Border Radius */
+  --radius-sm: 0.25rem;       /* 4px */
+  --radius-md: 0.5rem;        /* 8px */
+  --radius-lg: 0.75rem;       /* 12px */
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.1);
+  
+  /* Neutral Colors */
+  --color-text-primary: #333333;
+  --color-text-secondary: #666666;
+  --color-text-muted: #a0a0a0;
+  --color-border: #ddd;
+  --color-border-light: #eaeaea;
+  --color-background: #ffffff;
+  --color-background-light: #f9f9f9;
+  --color-background-hover: #e0e0e0;
+  --color-error: #c62828;
+  --color-error-light: #ffebee;
+  
+  /* Animation */
+  --transition-fast: 0.2s;
+  --transition-normal: 0.3s;
+  
+  /* Existing Shadcn Variables */
   --background: 0 0% 100%;
   --foreground: 0 0% 3.9%;
   --card: 0 0% 100%;
@@ -48,4 +112,14 @@
   --border: 0 0% 14.9%;
   --input: 0 0% 14.9%;
   --ring: 0 0% 83.1%;
+  
+  /* Dark mode overrides for our custom variables */
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #707070;
+  --color-border: #444444;
+  --color-border-light: #333333;
+  --color-background: #121212;
+  --color-background-light: #1e1e1e;
+  --color-background-hover: #2a2a2a;
 }
