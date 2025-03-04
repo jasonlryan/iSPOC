@@ -4,3 +4,316 @@
   padding: 2rem;
   text-align: center;
 }
+
+/* Base styles */
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.app-header h1 {
+  color: #C6007E;
+  margin-bottom: 10px;
+}
+
+.app-header p {
+  color: #666;
+}
+
+/* Chat container */
+.chat-container {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Welcome message */
+.welcome-message {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.welcome-message h2 {
+  color: #1C6280;
+  margin-bottom: 15px;
+}
+
+.common-questions {
+  margin-top: 30px;
+}
+
+.common-questions h3 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.common-questions ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.common-questions button {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.common-questions button:hover {
+  background-color: #e0e0e0;
+}
+
+/* Messages */
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.message {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  animation: fadeIn 0.3s ease-out;
+  font-size: 12pt !important;
+}
+
+.message.user {
+  align-self: flex-end;
+  background-color: #C6007E;
+  color: white;
+  font-size: 12pt !important;
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background-color: white;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 12pt !important;
+}
+
+.message-content {
+  word-break: break-word;
+  padding: 12px;
+  font-size: 12pt !important;
+}
+
+/* Markdown styling for assistant messages */
+.message.assistant .message-content {
+  /* General markdown styles */
+  line-height: 1.6;
+  font-size: 12pt !important;
+}
+
+.message.assistant .message-content h1,
+.message.assistant .message-content h2,
+.message.assistant .message-content h3,
+.message.assistant .message-content h4,
+.message.assistant .message-content h5,
+.message.assistant .message-content h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  color: #1C6280;
+}
+
+.message.assistant .message-content h1 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 0.3em;
+}
+
+.message.assistant .message-content h2 {
+  font-size: 1.3em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 0.3em;
+}
+
+.message.assistant .message-content h3 {
+  font-size: 1.2em;
+}
+
+.message.assistant .message-content h4 {
+  font-size: 1.1em;
+}
+
+.message.assistant .message-content p {
+  margin-top: 0;
+  margin-bottom: 1em;
+  font-size: 12pt !important;
+}
+
+.message.assistant .message-content ul,
+.message.assistant .message-content ol {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 2em;
+}
+
+.message.assistant .message-content li {
+  margin-bottom: 0.3em;
+  font-size: 12pt !important;
+}
+
+.message.assistant .message-content blockquote {
+  margin: 0 0 1em;
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 3px solid #dfe2e5;
+}
+
+.message.assistant .message-content pre {
+  background-color: #f6f8fa;
+  border-radius: 3px;
+  padding: 16px;
+  overflow: auto;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 85%;
+  line-height: 1.45;
+  margin-bottom: 1em;
+}
+
+.message.assistant .message-content code {
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 85%;
+  padding: 0.2em 0.4em;
+}
+
+.message.assistant .message-content a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.message.assistant .message-content a:hover {
+  text-decoration: underline;
+}
+
+.message.assistant .message-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+.message.assistant .message-content table th,
+.message.assistant .message-content table td {
+  padding: 6px 13px;
+  border: 1px solid #dfe2e5;
+}
+
+.message.assistant .message-content table tr {
+  background-color: #fff;
+  border-top: 1px solid #c6cbd1;
+}
+
+.message.assistant .message-content table tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+
+/* Loading animation */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading::after {
+  content: "...";
+  animation: dots 1.5s infinite;
+  width: 24px;
+  display: inline-block;
+  text-align: left;
+}
+
+@keyframes dots {
+  0%, 20% { content: "."; }
+  40% { content: ".."; }
+  60%, 100% { content: "..."; }
+}
+
+/* Error message */
+.error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin: 10px 0;
+  text-align: center;
+}
+
+/* Input form */
+.input-form {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.input-form input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.input-form button {
+  background-color: #C6007E;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.input-form button:hover {
+  background-color: #a30068;
+}
+
+.input-form button:disabled {
+  background-color: #e0e0e0;
+  color: #a0a0a0;
+  cursor: not-allowed;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Debug panel */
+.debug-panel {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+}
