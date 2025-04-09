@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Target the viewport div inside our custom scroll area class */
+.chat-scroll-area > div[data-radix-scroll-area-viewport] {
+  /* Force vertical scrollbar */
+  overflow-y: scroll !important;
+}
+
 :root {
   /* Brand Colors */
   --mha-pink: #d4007f;
