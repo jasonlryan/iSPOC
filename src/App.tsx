@@ -104,22 +104,47 @@ function App() {
     },
   ];
 
-  // Markdown components mapping (ensure this is defined)
+  // Function to pre-process text - ABSOLUTE MINIMUM - Only Citations & Object
+  const processTextForMarkdown = (text: string) => {
+    let processed = String(text);
+
+    // 1. Remove citation patterns
+    processed = processed.replace(
+      /\s*(\[\d+:\d+\*source\]|\u3010\d+:\d+[\u2020†]source\u3011)\s*/g,
+      " "
+    );
+
+    // 2. Remove ,[object Object],
+    processed = processed.replace(/,\[object Object\],/g, " ");
+
+    // 3. Trim whitespace from start/end only
+    return processed.trim();
+  };
+
+  // Markdown components: ABSOLUTELY BASIC - No cleaning, just render children
   const markdownComponents = {
-    p: ({ children }: any) => (
-      <p className="message-markdown-paragraph">{children}</p>
-    ),
+    p: ({ children }: any) => {
+      return <p className="message-markdown-paragraph">{children}</p>;
+    },
+    strong: ({ children }: any) => {
+      // Basic styling via className ONLY
+      return (
+        <strong className="text-mha-blue font-semibold">{children}</strong>
+      );
+    },
+    li: ({ children }: any) => {
+      return <li className="message-markdown-list-item mb-1">{children}</li>;
+    },
     ul: ({ children }: any) => (
-      <ul className="message-markdown-list">{children}</ul>
+      <ul className="message-markdown-list list-disc pl-5 mb-2">{children}</ul>
     ),
-    li: ({ children }: any) => (
-      <li className="message-markdown-list-item">{children}</li>
-    ),
-    blockquote: ({ children }: any) => (
-      <blockquote className="message-markdown-blockquote">
-        {children}
-      </blockquote>
-    ),
+    blockquote: ({ children }: any) => {
+      return (
+        <blockquote className="message-markdown-blockquote border-l-4 border-gray-300 pl-3 italic my-2">
+          {children}
+        </blockquote>
+      );
+    },
   };
 
   const handleSend = async (messageToSend?: string) => {
@@ -511,23 +536,27 @@ function App() {
                       );
                     } else {
                       // AI message content is TextContentItem[]
-                      const isLastMessage = index === messages.length - 1;
                       const aiContent = message.content as TextContentItem[]; // Type assertion
 
                       if (Array.isArray(aiContent) && aiContent.length > 0) {
-                        // Render array of text content items
+                        // Combine all text items into a single string
+                        const combinedText = aiContent
+                          .map((item) => item.text.value)
+                          .join("\n"); // Join with single newline
+
+                        // Pre-process the combined text before passing to Markdown parser
+                        const processedText =
+                          processTextForMarkdown(combinedText);
+
                         messageContentElement = (
-                          <div className="prose prose-sm max-w-none">
-                            {aiContent.map((item, itemIndex) => (
-                              <React.Fragment key={itemIndex}>
-                                <ReactMarkdown components={markdownComponents}>
-                                  {item.text.value}
-                                </ReactMarkdown>
-                              </React.Fragment>
-                            ))}
+                          <div className="prose prose-sm max-w-none ai-message-content">
+                            {/* Pass PRE-PROCESSED text to ReactMarkdown */}
+                            <ReactMarkdown components={markdownComponents}>
+                              {processedText}
+                            </ReactMarkdown>
                           </div>
                         );
-                      } else if (isLoading && isLastMessage) {
+                      } else if (isLoading && index === messages.length - 1) {
                         // Render animation for the last AI message if empty and loading
                         messageContentElement = (
                           <div className="flex items-center space-x-2">

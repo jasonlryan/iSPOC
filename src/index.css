@@ -8,6 +8,43 @@
   overflow-y: scroll !important;
 }
 
+/* Enhanced message formatting styles */
+
+/* Styling for strong elements (used for titles/bold) */
+.ai-message-content strong {
+  /* Use inline-block or inline to prevent forcing new lines? Test this. */
+  /* display: block; <-- Removed, let markdown control flow */
+  color: var(--mha-blue);
+  font-weight: var(--font-weight-semibold);
+  /* Removed margins, let paragraph/list spacing handle it */
+  /* margin-top: 1rem; */ 
+  /* margin-bottom: 0.375rem; */ 
+  /* font-size: 1.1rem; <-- Use default or slightly larger */
+}
+
+.ai-message-content p {
+  margin-bottom: 0.75rem; /* Space below paragraphs */
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.ai-message-content ul {
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem; /* Indentation for lists */
+}
+
+.ai-message-content li {
+  margin-bottom: 0.25rem;
+}
+
+.ai-message-content {
+  white-space: normal; /* Allow normal text wrapping */
+}
+
+/* Remove citation patterns CSS rule as it's handled in JS */
+/* .ai-message-content .citation-removed { display: none; } */
+
 :root {
   /* Brand Colors */
   --mha-pink: #d4007f;
