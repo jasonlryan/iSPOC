@@ -450,8 +450,38 @@ function App() {
     }
   }, [isAtBottom]);
 
+  // Handle creating a new chat
+  const handleNewChat = () => {
+    // 1. Stop any current streaming response
+    setIsLoading(false);
+
+    // 2. Reset messages to just the welcome message
+    setMessages([
+      {
+        type: "ai",
+        content: [
+          {
+            type: "text",
+            text: {
+              value:
+                "Hello! I'm your MHA Digital Assistant. How can I help you today?",
+            },
+          },
+        ],
+      },
+    ]);
+
+    // 3. Clear input field
+    setInput("");
+
+    // 4. Reset error state
+    setError(null);
+
+    console.log("[UI] Started new chat");
+  };
+
   return (
-    <div className="min-h-screen h-screen bg-gray-50 flex overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
       {/* Mobile Menu Toggle */}
       <Button
         variant="ghost"
@@ -464,7 +494,7 @@ function App() {
       {/* Sidebar */}
       <div
         className={`
-        fixed md:sticky top-0 left-0 h-full bg-mha-pink text-white p-6 md:w-[14.5rem] flex flex-col
+        fixed md:static top-0 left-0 h-screen md:h-auto md:min-h-screen bg-mha-pink text-white p-6 md:w-[14.5rem] flex flex-col
         transform transition-transform duration-300 ease-in-out z-40
         ${menuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}
@@ -503,137 +533,148 @@ function App() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-6 flex flex-col h-full overflow-hidden">
-        <div className="flex flex-col lg:flex-row gap-6 h-full relative">
-          {/* Chat Area */}
-          <Card className="flex-1 flex flex-col bg-white rounded-lg shadow-lg overflow-hidden mt-12 md:mt-0">
-            {/* Chat Header */}
-            <div className="bg-mha-blue text-white p-4">
-              <div className="flex items-center">
-                <div>
-                  <h2 className="text-xl font-semibold">Policy Assistant</h2>
-                  <p className="text-sm opacity-80">
-                    Available 24/7 to assist you
-                  </p>
+      {/* Main Content Wrapper */}
+      <div className="flex-1 p-6 h-full">
+        {/* Two-column Layout */}
+        <div className="grid lg:grid-cols-[1fr_320px] gap-6 h-full">
+          {/* Chat Area - Left Column */}
+          <div className="mt-12 md:mt-0 flex flex-col h-[calc(100vh-120px)] md:h-[calc(100vh-100px)]">
+            <Card className="flex flex-col bg-white rounded-lg shadow-lg overflow-hidden h-full">
+              {/* Chat Header */}
+              <div className="bg-mha-blue text-white p-4 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold">Policy Assistant</h2>
+                    <p className="text-sm opacity-80">
+                      Available 24/7 to assist you
+                    </p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="bg-white text-mha-blue hover:bg-gray-100 font-medium px-4 py-2"
+                    onClick={handleNewChat}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    New Chat
+                  </Button>
                 </div>
               </div>
-            </div>
 
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-hidden">
-              <ScrollArea className="h-full p-4 chat-scroll-area">
-                <div className="space-y-4">
-                  {messages.map((message, index) => {
-                    let messageContentElement: React.ReactNode = null;
+              {/* Chat Messages */}
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <ScrollArea className="h-full p-4 chat-scroll-area custom-scrollbar flex-grow">
+                  <div className="space-y-4">
+                    {messages.map((message, index) => {
+                      let messageContentElement: React.ReactNode = null;
 
-                    if (message.type === "user") {
-                      // User message content is always a string
-                      messageContentElement = (
-                        <p className="whitespace-pre-wrap">
-                          {message.content as string}
-                        </p>
-                      );
-                    } else {
-                      // AI message content is TextContentItem[]
-                      const aiContent = message.content as TextContentItem[]; // Type assertion
-
-                      if (Array.isArray(aiContent) && aiContent.length > 0) {
-                        // Combine all text items into a single string
-                        const combinedText = aiContent
-                          .map((item) => item.text.value)
-                          .join("\n"); // Join with single newline
-
-                        // Pre-process the combined text before passing to Markdown parser
-                        const processedText =
-                          processTextForMarkdown(combinedText);
-
+                      if (message.type === "user") {
+                        // User message content is always a string
                         messageContentElement = (
-                          <div className="prose prose-sm max-w-none ai-message-content">
-                            {/* Pass PRE-PROCESSED text to ReactMarkdown */}
-                            <ReactMarkdown components={markdownComponents}>
-                              {processedText}
-                            </ReactMarkdown>
-                          </div>
-                        );
-                      } else if (isLoading && index === messages.length - 1) {
-                        // Render animation for the last AI message if empty and loading
-                        messageContentElement = (
-                          <div className="flex items-center space-x-2">
-                            {/* Loading animation dots */}
-                            <div
-                              className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
-                              style={{ animationDelay: "0ms" }}
-                            ></div>
-                            <div
-                              className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
-                              style={{ animationDelay: "150ms" }}
-                            ></div>
-                            <div
-                              className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
-                              style={{ animationDelay: "300ms" }}
-                            ></div>
-                          </div>
+                          <p className="whitespace-pre-wrap">
+                            {message.content as string}
+                          </p>
                         );
                       } else {
-                        // Fallback for empty AI message (e.g., error state or before loading)
-                        messageContentElement = (
-                          <p className="text-gray-400">...</p>
-                        );
-                      }
-                    }
+                        // AI message content is TextContentItem[]
+                        const aiContent = message.content as TextContentItem[]; // Type assertion
 
-                    return (
-                      <div
-                        key={index}
-                        className={`flex ${
-                          message.type === "user"
-                            ? "justify-end"
-                            : "justify-start"
-                        }`}
-                      >
-                        <Card
-                          className={`max-w-[80%] p-3 ${
+                        if (Array.isArray(aiContent) && aiContent.length > 0) {
+                          // Combine all text items into a single string
+                          const combinedText = aiContent
+                            .map((item) => item.text.value)
+                            .join("\n"); // Join with single newline
+
+                          // Pre-process the combined text before passing to Markdown parser
+                          const processedText =
+                            processTextForMarkdown(combinedText);
+
+                          messageContentElement = (
+                            <div className="prose prose-sm max-w-none ai-message-content">
+                              {/* Pass PRE-PROCESSED text to ReactMarkdown */}
+                              <ReactMarkdown components={markdownComponents}>
+                                {processedText}
+                              </ReactMarkdown>
+                            </div>
+                          );
+                        } else if (isLoading && index === messages.length - 1) {
+                          // Render animation for the last AI message if empty and loading
+                          messageContentElement = (
+                            <div className="flex items-center space-x-2">
+                              {/* Loading animation dots */}
+                              <div
+                                className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
+                                style={{ animationDelay: "0ms" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
+                                style={{ animationDelay: "150ms" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
+                                style={{ animationDelay: "300ms" }}
+                              ></div>
+                            </div>
+                          );
+                        } else {
+                          // Fallback for empty AI message (e.g., error state or before loading)
+                          messageContentElement = (
+                            <p className="text-gray-400">...</p>
+                          );
+                        }
+                      }
+
+                      return (
+                        <div
+                          key={index}
+                          className={`flex ${
                             message.type === "user"
-                              ? "bg-mha-pink text-white"
-                              : "bg-white"
+                              ? "justify-end"
+                              : "justify-start"
                           }`}
                         >
-                          {messageContentElement}
-                        </Card>
-                      </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </div>
-
-            {/* Chat Input */}
-            <div className="p-4 border-t">
-              <div className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && !e.shiftKey && handleSend()
-                  }
-                  placeholder="Type your message..."
-                  className="flex-1"
-                  disabled={isLoading}
-                />
-                <Button
-                  onClick={() => handleSend()}
-                  disabled={isLoading}
-                  className="bg-mha-pink hover:bg-mha-pink-dark"
-                >
-                  <Send className="h-5 w-5" />
-                </Button>
+                          <Card
+                            className={`max-w-[80%] p-3 ${
+                              message.type === "user"
+                                ? "bg-mha-pink text-white"
+                                : "bg-white"
+                            }`}
+                          >
+                            {messageContentElement}
+                          </Card>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
               </div>
-            </div>
-          </Card>
 
-          {/* Desktop Help Panel */}
-          <div className="hidden lg:flex lg:w-80 flex-col gap-4">
+              {/* Chat Input */}
+              <div className="p-4 border-t flex-shrink-0">
+                <div className="flex gap-2">
+                  <Input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && !e.shiftKey && handleSend()
+                    }
+                    placeholder="Type your message..."
+                    className="flex-1"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={() => handleSend()}
+                    disabled={isLoading}
+                    className="bg-mha-pink hover:bg-mha-pink-dark"
+                  >
+                    <Send className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Right Sidebar */}
+          <div className="hidden lg:block space-y-4">
             <Card className="p-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-mha-blue">
@@ -826,225 +867,231 @@ function App() {
               )}
             </Card>
           </div>
+        </div>
 
-          {/* Mobile Help Panel */}
-          <div
-            className={`
-              fixed bottom-0 left-0 right-0 bg-white shadow-lg rounded-t-xl 
-              transform transition-transform duration-300 ease-in-out
-              lg:hidden z-30
-              ${
-                helpPanelOpen
-                  ? "translate-y-0"
-                  : "translate-y-[calc(100%-2.5rem)]"
-              }
-            `}
+        {/* Mobile Help Panel */}
+        <div
+          className={`
+            fixed bottom-0 left-0 right-0 bg-white shadow-lg rounded-t-xl 
+            transform transition-transform duration-300 ease-in-out
+            lg:hidden z-30
+            ${
+              helpPanelOpen
+                ? "translate-y-0"
+                : "translate-y-[calc(100%-2.5rem)]"
+            }
+          `}
+        >
+          <Button
+            variant="ghost"
+            className="w-full h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-t-xl"
+            onClick={() => setHelpPanelOpen(!helpPanelOpen)}
           >
-            <Button
-              variant="ghost"
-              className="w-full h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-t-xl"
-              onClick={() => setHelpPanelOpen(!helpPanelOpen)}
-            >
-              <ChevronUp
-                className={`h-5 w-5 transform transition-transform ${
-                  helpPanelOpen ? "rotate-180" : ""
-                }`}
-              />
-            </Button>
-            <div className="p-4 max-h-[70vh] overflow-y-auto">
+            <ChevronUp
+              className={`h-5 w-5 transform transition-transform ${
+                helpPanelOpen ? "rotate-180" : ""
+              }`}
+            />
+          </Button>
+          <div className="p-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-mha-blue">
+                Common Questions
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-1 h-auto"
+                onClick={() =>
+                  setMobileQuestionsExpanded(!mobileQuestionsExpanded)
+                }
+              >
+                {mobileQuestionsExpanded ? (
+                  <ChevronUp className="h-5 w-5 text-mha-blue" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-mha-blue" />
+                )}
+              </Button>
+            </div>
+            {mobileQuestionsExpanded && (
+              <div className="space-y-1 mb-4">
+                {commonQuestions.map((question, index) => (
+                  <Button
+                    key={index}
+                    variant="ghost"
+                    className="w-full justify-start text-left h-auto normal-case font-normal hover:bg-mha-blue-10 text-gray-700 px-3 py-2"
+                    onClick={() => {
+                      handleSend(question.text);
+                      setHelpPanelOpen(false);
+                    }}
+                    disabled={isLoading}
+                  >
+                    {question.icon}
+                    <span className="flex-1">{question.text}</span>
+                  </Button>
+                ))}
+              </div>
+            )}
+            {/* Mobile panels for About, Evaluation, and Disclaimer sections */}
+            {/* About section */}
+            <div className="p-4 bg-white rounded-lg text-sm text-gray-600 mb-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-mha-blue">
-                  Common Questions
+                  About this Chatbot
                 </h3>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="p-1 h-auto"
-                  onClick={() =>
-                    setMobileQuestionsExpanded(!mobileQuestionsExpanded)
-                  }
+                  onClick={() => setMobileAboutExpanded(!mobileAboutExpanded)}
                 >
-                  {mobileQuestionsExpanded ? (
+                  {mobileAboutExpanded ? (
                     <ChevronUp className="h-5 w-5 text-mha-blue" />
                   ) : (
                     <ChevronDown className="h-5 w-5 text-mha-blue" />
                   )}
                 </Button>
               </div>
-              {mobileQuestionsExpanded && (
-                <div className="space-y-1 mb-4">
-                  {commonQuestions.map((question, index) => (
-                    <Button
-                      key={index}
-                      variant="ghost"
-                      className="w-full justify-start text-left h-auto normal-case font-normal hover:bg-mha-blue-10 text-gray-700 px-3 py-2"
-                      onClick={() => {
-                        handleSend(question.text);
-                        setHelpPanelOpen(false);
-                      }}
-                      disabled={isLoading}
-                    >
-                      {question.icon}
-                      <span className="flex-1">{question.text}</span>
-                    </Button>
-                  ))}
+              {mobileAboutExpanded && (
+                <div className="space-y-2">
+                  <p className="leading-relaxed">
+                    The Policy Assistant is a pilot program designed to test the
+                    efficiency of information retrieval from non-clinical
+                    policies. This AI-powered chatbot helps staff quickly access
+                    and understand MHA's policy information without having to
+                    search through multiple documents.
+                  </p>
+                  <p className="leading-relaxed">
+                    As part of our digital transformation initiative, this tool
+                    aims to streamline administrative processes and improve
+                    staff access to important policy guidelines. Your feedback
+                    during this pilot phase will help us enhance the system and
+                    expand its capabilities.
+                  </p>
                 </div>
               )}
-              <div className="p-4 bg-white rounded-lg text-sm text-gray-600 mb-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-mha-blue">
-                    About this Chatbot
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1 h-auto"
-                    onClick={() => setMobileAboutExpanded(!mobileAboutExpanded)}
-                  >
-                    {mobileAboutExpanded ? (
-                      <ChevronUp className="h-5 w-5 text-mha-blue" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-mha-blue" />
-                    )}
-                  </Button>
-                </div>
-                {mobileAboutExpanded && (
-                  <div className="space-y-2">
-                    <p className="leading-relaxed">
-                      The Policy Assistant is a pilot program designed to test
-                      the efficiency of information retrieval from non-clinical
-                      policies. This AI-powered chatbot helps staff quickly
-                      access and understand MHA's policy information without
-                      having to search through multiple documents.
-                    </p>
-                    <p className="leading-relaxed">
-                      As part of our digital transformation initiative, this
-                      tool aims to streamline administrative processes and
-                      improve staff access to important policy guidelines. Your
-                      feedback during this pilot phase will help us enhance the
-                      system and expand its capabilities.
-                    </p>
-                  </div>
-                )}
+            </div>
+
+            {/* Evaluation section */}
+            <div className="p-4 bg-white rounded-lg text-sm text-gray-600 mb-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-mha-blue">
+                  Evaluation Questions
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-1 h-auto"
+                  onClick={() =>
+                    setMobileEvaluationExpanded(!mobileEvaluationExpanded)
+                  }
+                >
+                  {mobileEvaluationExpanded ? (
+                    <ChevronUp className="h-5 w-5 text-mha-blue" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-mha-blue" />
+                  )}
+                </Button>
               </div>
-              <div className="p-4 bg-white rounded-lg text-sm text-gray-600 mb-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-mha-blue">
-                    Evaluation Questions
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1 h-auto"
-                    onClick={() =>
-                      setMobileEvaluationExpanded(!mobileEvaluationExpanded)
-                    }
-                  >
-                    {mobileEvaluationExpanded ? (
-                      <ChevronUp className="h-5 w-5 text-mha-blue" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-mha-blue" />
-                    )}
-                  </Button>
-                </div>
-                {mobileEvaluationExpanded && (
-                  <div className="space-y-3">
-                    <p className="italic text-gray-500 text-xs mb-2">
-                      Try asking the chatbot these questions to evaluate its
-                      performance:
-                    </p>
-                    <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
-                      <p className="font-medium text-mha-blue">
-                        1. Recruitment Process Question
-                      </p>
-                      <p>
-                        What are the key stages in MHA's recruitment process,
-                        and how does the organization ensure equality and
-                        diversity during hiring?
-                      </p>
-                    </div>
-                    <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
-                      <p className="font-medium text-mha-blue">
-                        2. Leave Policy Question
-                      </p>
-                      <p>
-                        How do the Family Leave and Sickness Absence policies
-                        interact when an employee needs to care for a sick
-                        family member while also being unwell themselves?
-                      </p>
-                    </div>
-                    <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
-                      <p className="font-medium text-mha-blue">
-                        3. Complaints Handling Question
-                      </p>
-                      <p>
-                        What is the timeframe for responding to formal
-                        complaints from residents, and what are the different
-                        stages of the complaints process?
-                      </p>
-                    </div>
-                    <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
-                      <p className="font-medium text-mha-blue">
-                        4. Whistleblowing Process Question
-                      </p>
-                      <p>
-                        If I need to report a serious concern about misconduct,
-                        what protections does the Whistleblowing Policy provide
-                        and what steps should I follow?
-                      </p>
-                    </div>
-                    <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
-                      <p className="font-medium text-mha-blue">
-                        5. Business Expenses Question
-                      </p>
-                      <p>
-                        What expenses can staff claim for when traveling between
-                        MHA locations, and what documentation is required for
-                        reimbursement?
-                      </p>
-                    </div>
-                    <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
-                      <p className="font-medium text-mha-blue">
-                        6. Resident Valuables Question
-                      </p>
-                      <p>
-                        What procedures should staff follow when handling
-                        residents' money and valuables, and what are the
-                        record-keeping requirements?
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 bg-mha-blue-10 rounded-lg text-sm text-gray-600">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-mha-blue">
-                    Disclaimer
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1 h-auto"
-                    onClick={() =>
-                      setMobileDisclaimerExpanded(!mobileDisclaimerExpanded)
-                    }
-                  >
-                    {mobileDisclaimerExpanded ? (
-                      <ChevronUp className="h-5 w-5 text-mha-blue" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-mha-blue" />
-                    )}
-                  </Button>
-                </div>
-                {mobileDisclaimerExpanded && (
-                  <p className="leading-relaxed">
-                    This AI assistant is designed to provide general information
-                    and guidance. While we strive for accuracy, please verify
-                    critical information through official channels. For urgent
-                    matters, contact your supervisor or HR directly.
+              {mobileEvaluationExpanded && (
+                <div className="space-y-3">
+                  <p className="italic text-gray-500 text-xs mb-2">
+                    Try asking the chatbot these questions to evaluate its
+                    performance:
                   </p>
-                )}
+                  <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
+                    <p className="font-medium text-mha-blue">
+                      1. Recruitment Process Question
+                    </p>
+                    <p>
+                      What are the key stages in MHA's recruitment process, and
+                      how does the organization ensure equality and diversity
+                      during hiring?
+                    </p>
+                  </div>
+                  <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
+                    <p className="font-medium text-mha-blue">
+                      2. Leave Policy Question
+                    </p>
+                    <p>
+                      How do the Family Leave and Sickness Absence policies
+                      interact when an employee needs to care for a sick family
+                      member while also being unwell themselves?
+                    </p>
+                  </div>
+                  <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
+                    <p className="font-medium text-mha-blue">
+                      3. Complaints Handling Question
+                    </p>
+                    <p>
+                      What is the timeframe for responding to formal complaints
+                      from residents, and what are the different stages of the
+                      complaints process?
+                    </p>
+                  </div>
+                  <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
+                    <p className="font-medium text-mha-blue">
+                      4. Whistleblowing Process Question
+                    </p>
+                    <p>
+                      If I need to report a serious concern about misconduct,
+                      what protections does the Whistleblowing Policy provide
+                      and what steps should I follow?
+                    </p>
+                  </div>
+                  <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
+                    <p className="font-medium text-mha-blue">
+                      5. Business Expenses Question
+                    </p>
+                    <p>
+                      What expenses can staff claim for when traveling between
+                      MHA locations, and what documentation is required for
+                      reimbursement?
+                    </p>
+                  </div>
+                  <div className="p-2 border border-gray-200 rounded-md hover:bg-gray-50">
+                    <p className="font-medium text-mha-blue">
+                      6. Resident Valuables Question
+                    </p>
+                    <p>
+                      What procedures should staff follow when handling
+                      residents' money and valuables, and what are the
+                      record-keeping requirements?
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Disclaimer section */}
+            <div className="p-4 bg-mha-blue-10 rounded-lg text-sm text-gray-600">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-mha-blue">
+                  Disclaimer
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-1 h-auto"
+                  onClick={() =>
+                    setMobileDisclaimerExpanded(!mobileDisclaimerExpanded)
+                  }
+                >
+                  {mobileDisclaimerExpanded ? (
+                    <ChevronUp className="h-5 w-5 text-mha-blue" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-mha-blue" />
+                  )}
+                </Button>
               </div>
+              {mobileDisclaimerExpanded && (
+                <p className="leading-relaxed">
+                  This AI assistant is designed to provide general information
+                  and guidance. While we strive for accuracy, please verify
+                  critical information through official channels. For urgent
+                  matters, contact your supervisor or HR directly.
+                </p>
+              )}
             </div>
           </div>
         </div>
