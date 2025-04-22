@@ -1,328 +1,328 @@
 // API service for OpenAI integration
 
+import systemPrompt from "../prompts/system_prompt.md?raw";
+import { debug, inspectStream } from "./debug";
+
 // Access environment variables
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const ASST_API_KEY = import.meta.env.VITE_ASST_API_KEY;
+const VECTOR_STORE_ID = import.meta.env.VITE_OPENAI_VECTOR_STORE_ID;
 
-// Check if API keys are available
+// Check if API key is available
 if (!OPENAI_API_KEY) {
-  console.warn('OpenAI API key is not set. Please check your .env file.');
+  debug.warn('api', 'OpenAI API key is not set. Please check your .env file.');
 }
 
-if (!ASST_API_KEY) {
-  console.warn('Assistant API key is not set. Please check your .env file.');
+// Check if vector store ID is available
+if (!VECTOR_STORE_ID) {
+  debug.warn('api', 'Vector Store ID is not set. Please check your .env file.');
 }
 
-// Store thread ID in memory (in a real app, this would be stored in a database or localStorage)
-let currentThreadId: string | null = null;
+// Add this to help debug by seeing console logs
+debug.log('api', `API module initialized with Vector Store ID: ${VECTOR_STORE_ID ? "✅ Set" : "❌ Missing"}`);
+debug.log('api', `API Key: ${OPENAI_API_KEY ? "✅ Present (hidden)" : "❌ Missing"}`);
+
+// Define response type for createResponse
+export interface ResponseResult {
+  text: string;
+  id?: string;
+}
+
+// Add this helper function at the top of the file
+/**
+ * Helper to ensure consistent format when calling onChunk
+ */
+function callChunkCallback(
+  onChunk: (contentItem: { type: "text"; index: number; text: { value: string } }) => void,
+  textValue: string,
+  index: number = 0
+) {
+  try {
+    // Skip empty chunks
+    if (!textValue || textValue.length === 0) {
+      debug.warn('api', `Skipping empty chunk at index ${index}`);
+      return;
+    }
+    
+    // Create a properly formatted content item
+    const contentItem = {
+      type: "text" as const,
+      index,
+      text: { value: textValue }
+    };
+    
+    // Log what we're sending with extra visibility
+    const preview = textValue.substring(0, Math.min(30, textValue.length));
+    console.warn(`🔴 CHUNK TO UI [index=${index}]: "${preview}${textValue.length > 30 ? '...' : ''}" (${textValue.length} chars)`);
+    
+    // Call the chunk handler
+    onChunk(contentItem);
+    
+    // Confirm the callback was called
+    debug.log('api', `Chunk callback called successfully for index ${index}`);
+  } catch (err) {
+    console.error("❌ ERROR IN CHUNK CALLBACK:", err);
+    debug.error('api', "Error in chunk callback", err);
+  }
+}
 
 /**
- * Send a message to the OpenAI Assistant API
- * @param message The user's message
- * @param onChunk Optional callback function that receives delta content items
- * @returns The AI response
+ * Send a message using the OpenAI Responses API (migration target)
+ * @param userQuery The user's message
+ * @param previousResponseId The previous response ID for conversation continuity
+ * @param onChunk Optional callback for streaming partial responses
+ * @returns The AI response text and response ID for continuity
  */
-export async function sendMessage(
-  message: string,
-  onChunk?: (contentItem: { index: number; type: string; text?: { value: string } }) => void
-): Promise<string> {
+export async function createResponse(
+  userQuery: string,
+  previousResponseId?: string,
+  onChunk?: (contentItem: { type: "text"; index: number; text: { value: string } }) => void
+): Promise<ResponseResult> {
+  debug.group('api', 'Creating new response');
+  debug.log('api', `Query: "${userQuery}"`);
+  debug.log('api', `Previous Response ID: ${previousResponseId || "None (new conversation)"}`);
+  debug.log('api', `Streaming mode: ${onChunk ? "✅ Enabled" : "❌ Disabled"}`);
+
+  // Cap query length to 2000 chars to prevent potential context length issues
+  const cappedQuery = userQuery.length > 2000 
+    ? userQuery.substring(0, 2000) + "..." 
+    : userQuery;
+  
+  if (userQuery.length > 2000) {
+    debug.warn('api', `Query truncated from ${userQuery.length} to 2000 chars`);
+  }
+
   try {
-    console.log('[API] sendMessage initiated.');
-    console.log('[API] Using API key:', OPENAI_API_KEY?.substring(0, 5) + '...');
-    console.log('[API] Using Assistant ID:', ASST_API_KEY);
+    // Verify vector store ID is available
+    if (!VECTOR_STORE_ID) {
+      throw new Error("Vector Store ID is not configured. Please check your environment variables.");
+    }
+
+    const requestBody: any = {
+      model: "gpt-4.1-mini",
+      instructions: systemPrompt,
+      input: cappedQuery,
+      store: true
+    };
+
+    // Only add tools if we have a valid vector store ID
+    if (VECTOR_STORE_ID) {
+      requestBody.tools = [
+        {
+          type: "file_search",
+          vector_store_ids: [VECTOR_STORE_ID]
+        }
+      ];
+    }
+
+    if (previousResponseId) {
+      requestBody.previous_response_id = previousResponseId;
+    }
+
+    // Enable streaming if we have a chunk handler
+    if (onChunk) {
+      requestBody.stream = true;
+    }
+
+    // Debug: Log the full request body
+    debug.log('api', "Request body prepared", { 
+      model: requestBody.model,
+      tools: requestBody.tools ? "✅ Included" : "❌ Not included",
+      stream: requestBody.stream ? "✅ Enabled" : "❌ Disabled" 
+    });
+
+    debug.log('api', "Sending request to OpenAI Responses API...");
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    debug.log('api', `Response received with status: ${response.status} ${response.statusText}`);
     
-    // Step 1: Create a thread if one doesn't exist
-    if (!currentThreadId) {
-      console.log('[API] No current thread ID, creating new thread...');
-      console.time('Thread creation');
-      const threadResponse = await fetch('https://api.openai.com/v1/threads', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'OpenAI-Beta': 'assistants=v2'
-        },
-        body: JSON.stringify({})
-      });
-      
-      if (!threadResponse.ok) {
-        const errorData = await threadResponse.json().catch(() => ({}));
-        console.error('[API] Thread creation error:', errorData);
-        throw new Error(`Failed to create thread: ${threadResponse.status} ${threadResponse.statusText}`);
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { message: "Could not parse error response" };
       }
       
-      const threadData = await threadResponse.json();
-      currentThreadId = threadData.id;
-      console.log('[API] Created new thread:', currentThreadId);
-      console.timeEnd('Thread creation');
-    } else {
-      console.log('[API] Using existing thread ID:', currentThreadId);
+      debug.error('api', "Responses API error:", errorData);
+      debug.error('api', `Status: ${response.status} ${response.statusText}`);
+      
+      throw new Error(
+        `Failed to create response: ${response.status} ${response.statusText}. ${
+          errorData.error?.message || JSON.stringify(errorData)
+        }`
+      );
     }
+
+    // Extract response ID from headers (preferred way)
+    let responseId: string | undefined = response.headers.get('openai-response-id') || 
+                     response.headers.get('x-response-id') || undefined;
     
-    // Step 2: Add a message to the thread
-    console.log('[API] Adding message to thread...');
-    console.time('Message creation');
-    const messageResponse = await fetch(`https://api.openai.com/v1/threads/${currentThreadId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'OpenAI-Beta': 'assistants=v2'
-      },
-      body: JSON.stringify({
-        role: 'user',
-        content: message
-      })
-    });
-    
-    if (!messageResponse.ok) {
-      const errorData = await messageResponse.json().catch(() => ({}));
-      console.error('[API] Message creation error:', errorData);
-      throw new Error(`Failed to add message: ${messageResponse.status} ${messageResponse.statusText}`);
+    if (responseId) {
+      debug.log('api', `Response ID from headers: ${responseId}`);
     }
-    console.timeEnd('Message creation');
-    
-    // Step 3: Create the Run
-    console.log('[API] Creating run...');
-    console.time('Run creation');
-    const runResponse = await fetch(`https://api.openai.com/v1/threads/${currentThreadId}/runs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'OpenAI-Beta': 'assistants=v2'
-      },
-      body: JSON.stringify({
-        assistant_id: ASST_API_KEY,
-        stream: !!onChunk // Request streaming only if onChunk is provided
-      })
-    });
-    
-    if (!runResponse.ok) {
-      const errorData = await runResponse.json().catch(() => ({}));
-      console.error('[API] Run creation error:', errorData);
-      throw new Error(`Failed to run assistant: ${runResponse.status} ${runResponse.statusText}`);
-    }
-    
-    // For streaming runs, the response body is the stream itself.
-    // For non-streaming, it's JSON containing the run details.
-    
-    // Step 4: Handle Response - Streaming or Polling
-    if (onChunk && runResponse.body) {
-      console.log('[API] Streaming response detected, processing stream...');
-      console.time('Manual Streaming');
-      let fullResponse = '';
-      let chunksReceived = 0;
-      const reader = runResponse.body.getReader();
+
+    // Streaming mode
+    if (onChunk && response.body) {
+      console.warn("🚀 STARTING STREAM PROCESSING");
+      let fullText = "";
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = ''; // Buffer to handle partial SSE messages
+      let buffer = "";
+      let chunkCounter = 0;
 
       try {
         while (true) {
+          console.warn("📚 Reading next chunk from stream...");
           const { done, value } = await reader.read();
+          
           if (done) {
-            console.log('[API] Stream finished.');
+            console.warn("📚 Stream reading complete - done=true");
             break;
           }
           
-          buffer += decoder.decode(value, { stream: true });
-          console.log(`[API] Raw chunk added to buffer. Buffer size: ${buffer.length}`);
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          chunkCounter++;
+          
+          console.warn(`📚 Got chunk #${chunkCounter}, buffer length = ${buffer.length}`);
 
-          // Process buffer line by line for SSE messages
+          // SSE messages are separated by "\n\n"
           let eolIndex;
-          while ((eolIndex = buffer.indexOf('\n\n')) >= 0) {
-             const message = buffer.substring(0, eolIndex).trim();
-             buffer = buffer.substring(eolIndex + 2);
-             
-             if (!message) continue; // Skip empty messages
-             
-             console.log('[API] Processing SSE message:', message);
-             let event = '';
-             let data = '';
-             const lines = message.split('\n');
-             
-             for (const line of lines) {
-               if (line.startsWith('event:')) {
-                 event = line.substring(6).trim();
-               } else if (line.startsWith('data:')) {
-                 data = line.substring(5).trim();
-               }
-             }
+          while ((eolIndex = buffer.indexOf("\n\n")) >= 0) {
+            const rawMessage = buffer.substring(0, eolIndex).trim();
+            buffer = buffer.substring(eolIndex + 2);
 
-             if (data === '[DONE]') {
-                console.log('[API] Received [DONE] signal in stream data.');
-                // The stream might send [DONE] before closing, reader.read() will handle final 'done'
+            if (!rawMessage) continue;
+
+            // Parse SSE lines
+            let event = "";
+            let data = "";
+            for (const line of rawMessage.split("\n")) {
+              if (line.startsWith("event:")) {
+                event = line.substring(6).trim();
+              } else if (line.startsWith("data:")) {
+                data = line.substring(5).trim();
+              }
+            }
+
+            console.warn(`📦 SSE EVENT: ${event}`);
+
+            if (data === "[DONE]") {
+              console.warn("📦 Received [DONE] message");
+              continue;
+            }
+
+            try {
+              const parsedData = JSON.parse(data);
+              
+              // Extract response ID from different event types
+              if (!responseId) {
+                if (event === "response.created" || event === "response.in_progress" || event === "response.completed") {
+                  if (parsedData.response?.id) {
+                    responseId = parsedData.response.id;
+                    console.warn(`📦 Response ID extracted: ${responseId}`);
+                  }
+                } else if (parsedData.response_id) {
+                  responseId = parsedData.response_id;
+                  console.warn(`📦 Response ID extracted: ${responseId}`);
+                }
+              }
+              
+              // Skip response.created event - we already have a placeholder
+              if (event === "response.created") {
+                console.warn("📦 Skipping response.created event");
                 continue;
-             }
+              }
+              
+              // Handle error events per user's instructions
+              if (event === "error" || event === "response.failed") {
+                const msg = parsedData.message || parsedData.error?.message || "Unknown tool error";
+                const code = parsedData.code || parsedData.error?.code;
+                console.error("Tool call failed:", code, msg);
 
-             if (event === 'thread.message.delta') {
-               try {
-                  console.log('[API] Raw delta data string:', data);
-                  const parsedData = JSON.parse(data);
-                  console.log('[API] Parsed delta object:', parsedData.delta);
-                  
-                  if (parsedData.delta?.content) {
-                     for (const contentItem of parsedData.delta.content) {
-                       // Check if it's a text item with a value
-                       if (contentItem.type === 'text' && contentItem.text?.value !== undefined) { 
-                         chunksReceived++;
-                         console.log(`[API] Extracted content item at index ${contentItem.index}, chunk ${chunksReceived}:`, contentItem.text.value);
-                         // Pass the whole contentItem object to the callback
-                         if (onChunk) { 
-                            onChunk(contentItem); 
-                         }
-                         // We still accumulate the full response text locally if needed for the final return value
-                         // Note: This simple accumulation might not perfectly match the block structure
-                         if (contentItem.index === 0) { // Simple assumption for now
-                           fullResponse = contentItem.text.value; 
-                         } else {
-                           // Needs more complex logic to handle multiple blocks if returning fullResponse
-                         }
-                       }
-                     }
-                   }
-               } catch (e) {
-                  console.error('[API] Error parsing streaming data JSON:', e, 'Raw data:', data);
-               }
-             } else if (event === 'thread.run.completed') {
-                 console.log('[API] Received thread.run.completed event in stream.');
-             } else {
-                 console.log('[API] Received other event type in stream:', event);
-             }
+                // Bubble a synthetic chunk to the UI so users see something
+                callChunkCallback(onChunk, `⚠️ Internal error (${code}): ${msg}`, 0);
+
+                // Stop reading any further
+                break;
+              }
+              
+              // Handle streaming chunks - process ONLY response.output_text.delta events
+              if (event === "response.output_text.delta") {
+                const textValue =
+                  typeof parsedData.delta === "string"
+                    ? parsedData.delta
+                    : parsedData.delta?.value ?? "";
+                if (textValue) {
+                  const partIndex = parsedData.content_index ?? 0;
+                  callChunkCallback(onChunk, textValue, partIndex);
+                  fullText += textValue;
+                }
+              }
+              // Only break the loop on completed events
+              else if (event === "response.completed") {
+                console.warn("🛑 Got completed event, breaking loop");
+                break;
+              }
+            } catch (err) {
+              console.error("📦 ERROR PARSING SSE:", err);
+            }
           }
         }
-        // Add final part of buffer if stream ends without double newline
-        if (buffer.trim()) {
-            console.log('[API] Processing remaining buffer after stream end:', buffer);
-             // Attempt to process final part - might be incomplete
-        }
-
-        console.timeEnd('Manual Streaming');
-        console.log(`[API] Stream processing finished. Total chunks: ${chunksReceived}. Full response length: ${fullResponse.length}`);
-        return fullResponse || 'Assistant processing complete.'; // Return accumulated response
-      } catch (streamError) {
-        console.error('[API] Error reading stream:', streamError);
-        // Don't fallback here, let the main catch handle it or return partial response?
-        // For now, let's throw to indicate failure
-        throw new Error('Failed to process stream');
+      } catch (err) {
+        console.error("📦 STREAM ERROR:", err);
       }
       
-    } else if (!onChunk) {
-      // Non-streaming path: Run was created, now poll for completion
-      const runDetails = await runResponse.json(); // Get run ID from non-streamed response
-      console.log('[API] Non-streaming run created, run ID:', runDetails.id, 'Polling...');
-      return pollForCompletion(runDetails.id);
+      console.warn(`🏁 STREAMING COMPLETED, total length: ${fullText.length}`);
+      return {
+        text: fullText,
+        id: responseId
+      };
     } else {
-      // Streaming requested but no response body? Should not happen if API call was ok.
-      console.error('[API] Stream requested but no response body received!');
-      throw new Error('Streaming failed: No response body');
+      // Non-stream scenario
+      debug.log('api', "Processing non-streaming response...");
+      let jsonData;
+      try {
+        jsonData = await response.json();
+        debug.log('api', "Non-streaming response data received");
+        
+        // Extract response ID from payload if not in headers
+        if (!responseId && jsonData.id) {
+          responseId = jsonData.id;
+          debug.log('api', `Response ID from payload: ${responseId}`);
+        }
+        
+        const contentArr = jsonData.content || [];
+        if (contentArr.length === 0) {
+          debug.warn('api', "Response contained no content:", jsonData);
+        }
+        
+        const text = contentArr
+          .filter((c: any) => c.type === "text")
+          .map((c: any) => c.text.value)
+          .join("\n");
+
+        debug.log('api', `Extracted text length: ${text.length}`);
+        debug.groupEnd();
+        return {
+          text,
+          id: responseId
+        };
+      } catch (err) {
+        debug.error('api', "Error parsing response JSON:", err);
+        throw new Error("Failed to parse response from OpenAI");
+      }
     }
-    
-  } catch (error) {
-    console.error('[API] Error in sendMessage:', error);
-    // Ensure a user-friendly error is returned
-    const message = error instanceof Error ? error.message : 'Unknown error occurred';
-    return `Error: ${message}`;
+  } catch (err) {
+    debug.error('api', "createResponse error:", err);
+    debug.groupEnd();
+    throw err;
   }
 }
-
-/**
- * Helper function to poll for run completion and retrieve messages
- * @param runId The ID of the run to poll
- * @returns The final assistant response
- */
-async function pollForCompletion(runId: string): Promise<string> {
-  console.log(`[API] Polling for completion of run: ${runId}`);
-  console.time('Polling Run completion');
-  let runStatus = 'queued';
-  let attempts = 0;
-  const maxAttempts = 60; // Maximum number of polling attempts (30 seconds)
-  
-  while (runStatus !== 'completed' && runStatus !== 'failed' && runStatus !== 'cancelled' && attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    attempts++;
-    
-    try {
-      const runStatusResponse = await fetch(`https://api.openai.com/v1/threads/${currentThreadId}/runs/${runId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'OpenAI-Beta': 'assistants=v2'
-        }
-      });
-      
-      if (!runStatusResponse.ok) {
-        let errorData = {};
-        try { errorData = await runStatusResponse.json(); } catch { /* ignore json parse error */ }
-        console.error('[API] Run status polling error:', runStatusResponse.status, errorData);
-        throw new Error(`Polling failed: ${runStatusResponse.status} ${runStatusResponse.statusText}`);
-      }
-      
-      const runStatusData = await runStatusResponse.json();
-      runStatus = runStatusData.status;
-      console.log(`[API] Polling status (attempt ${attempts}/${maxAttempts}):`, runStatus);
-      
-      if (runStatus === 'failed' || runStatus === 'cancelled') {
-        console.error('[API] Run polling ended with status:', runStatus, 'Details:', runStatusData.last_error);
-        throw new Error(`Run ${runStatus}: ${JSON.stringify(runStatusData.last_error)}`);
-      }
-    } catch (pollError) {
-       console.error('[API] Error during polling check:', pollError);
-       // Decide if we should retry or throw immediately
-       throw pollError; // Re-throw for now
-    }
-  }
-  
-  if (attempts >= maxAttempts) {
-    console.error('[API] Polling timed out.');
-    throw new Error('Timed out waiting for assistant response via polling');
-  }
-  console.timeEnd('Polling Run completion');
-  
-  // Get the assistant's messages
-  console.log('[API] Polling complete. Retrieving messages...');
-  console.time('Polling Message retrieval');
-  try {
-    const messagesResponse = await fetch(`https://api.openai.com/v1/threads/${currentThreadId}/messages?limit=1`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'OpenAI-Beta': 'assistants=v2'
-      }
-    });
-    
-    if (!messagesResponse.ok) {
-      let errorData = {};
-      try { errorData = await messagesResponse.json(); } catch { /* ignore json parse error */ }
-      console.error('[API] Messages retrieval error (polling):', messagesResponse.status, errorData);
-      throw new Error(`Failed to get messages: ${messagesResponse.status} ${messagesResponse.statusText}`);
-    }
-    
-    const messagesData = await messagesResponse.json();
-    const assistantMessages = messagesData.data.filter((msg: any) => msg.role === 'assistant');
-    
-    if (assistantMessages.length === 0) {
-      console.warn('[API] No assistant messages found after polling.');
-      return 'No response from assistant.';
-    }
-    
-    const latestMessage = assistantMessages[0];
-    let responseText = '';
-    if (latestMessage.content && Array.isArray(latestMessage.content)) {
-       for (const content of latestMessage.content) {
-         if (content.type === 'text') {
-           responseText += content.text.value;
-         }
-       }
-    } else {
-       console.warn('[API] Assistant message content structure unexpected:', latestMessage.content);
-    }
-    
-    console.timeEnd('Polling Message retrieval');
-    console.log('[API] Retrieved response via polling. Length:', responseText.length);
-    return responseText || 'Assistant responded but no text was found.';
-  } catch (retrievalError) {
-     console.error('[API] Error during message retrieval:', retrievalError);
-     throw retrievalError; // Re-throw
-  }
-} 

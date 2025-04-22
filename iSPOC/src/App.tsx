@@ -15,14 +15,19 @@ import {
   FileQuestion,
   ClipboardList,
   MessageSquarePlus,
+  Bug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { sendMessage } from "@/lib/api";
+import { createResponse } from "@/lib/api";
 import { EnvDebug } from "@/components/EnvDebug";
 import { MHALogo } from "./components/MHALogo";
+import { debug, initDebug, toggleDebug, isDebugMode } from "@/lib/debug";
+
+// Initialize debug mode
+initDebug();
 
 // Define message content structure for AI messages
 interface TextContentItem {
@@ -102,25 +107,67 @@ function App() {
 
   // Function to pre-process text - ABSOLUTE MINIMUM - Only Citations & Object
   const processTextForMarkdown = (text: string) => {
+    debug.group("ui", "Processing markdown");
+
+    if (!text) {
+      debug.warn("ui", "Received empty text for markdown processing");
+      debug.groupEnd();
+      return "";
+    }
+
     let processed = String(text);
 
+    // Debug the incoming text
+    debug.log("ui", `Text for markdown, length: ${processed.length}`);
+    if (processed.length > 0 && processed.length < 100) {
+      debug.log("ui", `Raw text content: "${processed}"`);
+    }
+
     // 1. Remove citation patterns
+    const beforeCitationRemoval = processed.length;
     processed = processed.replace(
       /\s*(\[\d+:\d+\*source\]|\u3010\d+:\d+[\u2020†]source\u3011)\s*/g,
       " "
     );
+    if (beforeCitationRemoval !== processed.length) {
+      debug.log(
+        "ui",
+        `Removed ${
+          beforeCitationRemoval - processed.length
+        } characters from citations`
+      );
+    }
 
     // 2. Remove ,[object Object],
+    const beforeObjectRemoval = processed.length;
     processed = processed.replace(/,\[object Object\],/g, " ");
+    if (beforeObjectRemoval !== processed.length) {
+      debug.log(
+        "ui",
+        `Removed ${
+          beforeObjectRemoval - processed.length
+        } characters from object notation`
+      );
+    }
 
     // 3. Trim whitespace from start/end only
-    return processed.trim();
+    processed = processed.trim();
+
+    // 4. Debug output text
+    if (processed.length > 0 && processed.length < 100) {
+      debug.log("ui", `Processed markdown text: "${processed}"`);
+    } else {
+      debug.log("ui", `Processed markdown text length: ${processed.length}`);
+    }
+
+    debug.groupEnd();
+    return processed;
   };
 
   // Markdown components: ABSOLUTELY BASIC - No cleaning, just render children
   const markdownComponents = {
     p: ({ children }: any) => {
-      return <p className="message-markdown-paragraph">{children}</p>;
+      return <p className="message-markdown-paragraph mb-3">{children}</p>;
     },
     strong: ({ children }: any) => {
       // Basic styling via className ONLY
@@ -132,157 +179,210 @@ function App() {
       return <li className="message-markdown-list-item mb-1">{children}</li>;
     },
     ul: ({ children }: any) => (
-      <ul className="message-markdown-list list-disc pl-5 mb-2">{children}</ul>
+      <ul className="message-markdown-list list-disc pl-5 mb-3">{children}</ul>
+    ),
+    ol: ({ children }: any) => (
+      <ol className="message-markdown-list list-decimal pl-5 mb-3">
+        {children}
+      </ol>
     ),
     blockquote: ({ children }: any) => {
       return (
-        <blockquote className="message-markdown-blockquote border-l-4 border-gray-300 pl-3 italic my-2">
+        <blockquote className="message-markdown-blockquote border-l-4 border-gray-300 pl-3 italic my-3">
           {children}
         </blockquote>
       );
     },
+    a: ({ children, href }: any) => (
+      <a
+        href={href}
+        className="text-mha-blue underline"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    ),
+    h1: ({ children }: any) => (
+      <h1 className="text-xl font-bold text-mha-blue mb-3 mt-4">{children}</h1>
+    ),
+    h2: ({ children }: any) => (
+      <h2 className="text-lg font-bold text-mha-blue mb-2 mt-3">{children}</h2>
+    ),
+    h3: ({ children }: any) => (
+      <h3 className="text-md font-bold text-mha-blue mb-2 mt-3">{children}</h3>
+    ),
   };
+
+  // Track the previous response ID for multi-turn continuity
+  const [previousResponseId, setPreviousResponseId] = useState<
+    string | undefined
+  >(undefined);
 
   const handleSend = async (messageToSend?: string) => {
     const message = messageToSend || input;
-    console.log(`[UI] handleSend triggered with message: ${message}`);
+    debug.log("ui", `handleSend triggered with message: ${message}`);
+
     if (message.trim() && !isLoading) {
-      console.log("[UI] Message valid and not loading, proceeding...");
-      // Add user message
-      const userMsg: Message = { type: "user", content: message };
-      setMessages((prev) => {
-        console.log("[UI] Adding user message to state:", userMsg);
-        return [...prev, userMsg];
-      });
+      debug.log("ui", "Message valid and not loading, proceeding...");
 
-      // Add empty AI message placeholder immediately
-      const aiPlaceholder: Message = { type: "ai", content: [] };
-      setMessages((prev) => {
-        console.log("[UI] Adding AI placeholder to state:", aiPlaceholder);
-        return [...prev, aiPlaceholder];
-      });
+      // First set loading state so the animation appears
+      setIsLoading(true);
+      debug.log("ui", "Set isLoading to true");
 
-      // Clear input only if the message came from the input field
+      // Clear input field if using the input box
       if (!messageToSend) {
         setInput("");
       }
-      setIsLoading(true); // Set loading to true to show animation
-      console.log("[UI] Set isLoading to true");
+
+      // Clear any previous errors
       setError(null);
 
+      // Add user message to the chat
+      const userMsg: Message = { type: "user", content: message };
+      let aiMessageIndex = -1; // Track where we're adding the AI message
+
+      setMessages((prev) => {
+        debug.log("ui", "Adding user message to state");
+
+        // Remember the index where the AI message will be
+        aiMessageIndex = prev.length;
+
+        // Add both the user message and an empty AI message placeholder at once
+        return [
+          ...prev,
+          userMsg,
+          { type: "ai", content: [{ type: "text", text: { value: "" } }] },
+        ];
+      });
+
+      debug.log("ui", `Added AI placeholder at index ${aiMessageIndex + 1}`);
+
       try {
-        console.log("[UI] Calling sendMessage API with message:", message);
-        // Note: sendMessage now returns the final accumulated string,
-        // but the UI updates happen via onChunk
-        await sendMessage(
-          message, // Use the message variable
-          // Updated onChunk to handle the content item object correctly
-          (contentItem) => {
-            console.log("[UI] onChunk received content item:", contentItem);
-            // Ensure we only process text content items AND text object exists
-            const textItem = contentItem.text; // Assign to variable first
+        debug.log("ui", "Calling createResponse API with message:", message);
+
+        // Use createResponse for the Responses API with streaming enabled
+        const responseResult: { text: string; id?: string } =
+          await createResponse(message, previousResponseId, (contentItem) => {
+            // CRITICAL: First log at the very top to confirm we received the chunk
+            console.log("UI chunk received:", contentItem);
+
+            // Basic validation
             if (
-              contentItem.type === "text" &&
-              textItem &&
-              textItem.value !== undefined
+              !contentItem ||
+              contentItem.type !== "text" ||
+              !contentItem.text?.value
             ) {
-              setMessages((prev) => {
-                const updatedMessages = [...prev];
-                const lastIndex = updatedMessages.length - 1;
-
-                if (
-                  lastIndex >= 0 &&
-                  updatedMessages[lastIndex].type === "ai"
-                ) {
-                  let aiMessageContent = updatedMessages[lastIndex]
-                    .content as TextContentItem[];
-                  // Ensure content is an array for AI messages
-                  if (!Array.isArray(aiMessageContent)) {
-                    console.warn(
-                      "[UI] AI message content was not an array, initializing."
-                    );
-                    aiMessageContent = [];
-                  }
-
-                  const targetIndex = contentItem.index;
-                  const newTextChunk = textItem.value; // This is the incoming chunk (delta)
-
-                  // Find or create the content item at the target index
-                  if (
-                    targetIndex >= 0 &&
-                    targetIndex < aiMessageContent.length
-                  ) {
-                    // Item exists, **APPEND** its text value
-                    console.log(
-                      `[UI] Appending chunk to content at index ${targetIndex}`
-                    );
-                    // Make sure the existing item is a text item
-                    if (aiMessageContent[targetIndex].type === "text") {
-                      aiMessageContent[targetIndex].text.value += newTextChunk;
-                    } else {
-                      console.warn(
-                        `[UI] Content item at index ${targetIndex} was not text, replacing with chunk.`
-                      );
-                      // Replace if it wasn't a text item somehow
-                      aiMessageContent[targetIndex] = {
-                        type: "text",
-                        text: { value: newTextChunk },
-                      };
-                    }
-                  } else if (targetIndex === aiMessageContent.length) {
-                    // Append new item if index matches current length
-                    console.log(
-                      `[UI] Creating new content item at index ${targetIndex} with chunk`
-                    );
-                    aiMessageContent.push({
-                      type: "text",
-                      text: { value: newTextChunk },
-                    });
-                  } else {
-                    // Handle potential index gaps or unexpected order
-                    console.warn(
-                      `[UI] Received content item with unexpected index ${targetIndex}. Current length: ${aiMessageContent.length}. Adding to end.`
-                    );
-                    // Add to the end as a fallback
-                    aiMessageContent.push({
-                      type: "text",
-                      text: { value: newTextChunk },
-                    });
-                  }
-
-                  // Create a new array for the state update to ensure React detects the change
-                  updatedMessages[lastIndex].content = [...aiMessageContent];
-                  // console.log('[UI] Updated message content array:', updatedMessages[lastIndex].content);
-                } else {
-                  console.warn(
-                    "[UI] Could not find AI placeholder message to update."
-                  );
-                }
-                return updatedMessages;
-              });
+              console.error("🔴 INVALID CHUNK:", contentItem);
+              return;
             }
-          }
-        );
-        console.log("[UI] sendMessage promise resolved.");
+
+            const textValue = contentItem.text.value;
+            const index = contentItem.index || 0;
+
+            console.warn(
+              `🟢 CHUNK TEXT [${index}]: "${textValue.substring(0, 20)}..." (${
+                textValue.length
+              } chars)`
+            );
+
+            // Update message state - simplified
+            setMessages((prevMessages) => {
+              // Clone all messages
+              const newMessages = [...prevMessages];
+
+              // Find the last AI message
+              let lastAIIndex = -1;
+              for (let i = newMessages.length - 1; i >= 0; i--) {
+                if (newMessages[i].type === "ai") {
+                  lastAIIndex = i;
+                  break;
+                }
+              }
+
+              // If no AI message found, something is wrong
+              if (lastAIIndex === -1) {
+                console.error("No AI message found to update");
+                return prevMessages;
+              }
+
+              // Get current content array
+              const message = newMessages[lastAIIndex];
+              let content = [...((message.content as TextContentItem[]) || [])];
+
+              // Initialize content if needed
+              if (content.length === 0) {
+                content = [{ type: "text", text: { value: "" } }];
+              }
+
+              // Make sure index exists in array
+              while (content.length <= index) {
+                content.push({ type: "text", text: { value: "" } });
+              }
+
+              // Update the content at index
+              const currentText = content[index].text?.value || "";
+              content[index] = {
+                ...content[index],
+                text: { value: currentText + textValue },
+              };
+
+              console.log(
+                `UI updated message: ${currentText.length} => ${
+                  currentText.length + textValue.length
+                }`
+              );
+
+              // If this is an error message (starts with ⚠️), stop the loading state
+              if (textValue.startsWith("⚠️")) {
+                debug.warn(
+                  "ui",
+                  "Error message received, stopping loading state"
+                );
+                setIsLoading(false);
+              }
+
+              // Create new message with updated content
+              newMessages[lastAIIndex] = {
+                ...message,
+                content,
+              };
+
+              return newMessages;
+            });
+          });
+
+        // Store the response ID for multi-turn conversation
+        if (responseResult.id) {
+          debug.log("ui", "Setting previousResponseId:", responseResult.id);
+          setPreviousResponseId(responseResult.id);
+        } else {
+          debug.warn(
+            "ui",
+            "No response ID received, multi-turn conversation may not work"
+          );
+        }
+
+        debug.log("ui", "createResponse promise resolved");
       } catch (error) {
-        console.error("[UI] Error getting response from sendMessage:", error);
+        debug.error("ui", "Error getting response from createResponse:", error);
         setError("Failed to get a response. Please try again.");
 
-        // Update the placeholder with error message (as a string for simplicity)
+        // Update the AI message with an error
         setMessages((prev) => {
-          console.log("[UI] Updating placeholder with error message.");
           const updatedMessages = [...prev];
-          const lastIndex = updatedMessages.length - 1;
 
-          if (
-            lastIndex >= 0 &&
-            updatedMessages[lastIndex].type === "ai" &&
-            (!Array.isArray(updatedMessages[lastIndex].content) ||
-              (updatedMessages[lastIndex].content as Array<any>).length === 0)
-          ) {
-            // Only update if still empty array
-            // Replace content array with a single text item containing the error
-            updatedMessages[lastIndex].content = [
+          // Find the last AI message
+          let lastAIIndex = -1;
+          for (let i = updatedMessages.length - 1; i >= 0; i--) {
+            if (updatedMessages[i].type === "ai") {
+              lastAIIndex = i;
+              break;
+            }
+          }
+
+          if (lastAIIndex >= 0) {
+            updatedMessages[lastAIIndex].content = [
               {
                 type: "text",
                 text: {
@@ -291,21 +391,15 @@ function App() {
                 },
               },
             ];
-            console.log("[UI] Placeholder updated with error.");
-          } else {
-            console.log(
-              "[UI] Placeholder already had content or was not found, not updating with error."
-            );
           }
           return updatedMessages;
         });
       } finally {
-        // IMPORTANT: Set loading to false AFTER the sendMessage promise resolves or rejects
         setIsLoading(false);
-        console.log("[UI] Set isLoading to false in finally block.");
+        debug.log("ui", "Set isLoading to false in finally block");
       }
     } else {
-      console.log("[UI] handleSend skipped: Input empty or already loading.");
+      debug.warn("ui", "handleSend skipped: Input empty or already loading");
     }
   };
 
@@ -314,95 +408,61 @@ function App() {
     handleSend(question); // Call handleSend directly with the question
   };
 
-  // Effect to scroll to bottom on new messages if user is already near the bottom
+  // Effect to scroll to bottom automatically when messages change
   useEffect(() => {
-    const viewport = viewportRef.current;
+    // Only scroll if user is already at the bottom or it's the first message
     console.log(
-      "[UI] Auto-scroll effect triggered. Viewport:",
-      viewport,
-      "isAtBottom:",
-      isAtBottom
+      "[UI] Messages updated, checking if scroll needed",
+      messages.length
     );
-    if (viewport && isAtBottom) {
-      // Use requestAnimationFrame to ensure DOM has updated before scrolling
-      requestAnimationFrame(() => {
-        console.log(
-          `[UI] Attempting auto-scroll. Current scrollHeight: ${viewport.scrollHeight}`
-        );
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-      });
+    if (isAtBottom || messages.length <= 1) {
+      const scrollTimeout = setTimeout(() => {
+        if (viewportRef.current) {
+          console.log("[UI] Auto-scrolling on message update");
+          viewportRef.current.scrollTo({
+            top: viewportRef.current.scrollHeight,
+            behavior: "smooth",
+          });
+        }
+      }, 50); // Small delay to let content render
+
+      return () => clearTimeout(scrollTimeout);
     } else {
-      console.log(
-        "[UI] Auto-scroll skipped (viewport null or user scrolled up)."
-      );
-    }
-    // When message content updates we want to scroll
-  }, [messages, isAtBottom]);
-
-  // Separate effect to handle content stream updates - ensure scrolling happens during streaming
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    const lastMessage = messages[messages.length - 1];
-
-    // Only auto-scroll for AI messages that are being streamed
-    if (viewport && isAtBottom && lastMessage && lastMessage.type === "ai") {
-      console.log("[UI] Stream update detected, triggering scroll");
-      requestAnimationFrame(() => {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-      });
+      console.log("[UI] Not scrolling as user has scrolled up", isAtBottom);
     }
   }, [messages, isAtBottom]);
 
-  // Effect to add scroll listener and manage isAtBottom state
+  // Effect to handle scroll events and track if user is at bottom
   useEffect(() => {
-    console.log(
-      "[UI] Scroll listener effect attaching. viewportRef.current:",
-      viewportRef.current
-    );
     const viewport = viewportRef.current;
-    if (!viewport) {
-      console.warn("[UI] Viewport element not found for scroll listener.");
-      return; // Exit if viewport is not yet available
-    }
+    if (!viewport) return;
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
-      // Add logging for scroll values
-      console.log(
-        `[UI] Scroll event: scrollTop=${scrollTop}, scrollHeight=${scrollHeight}, clientHeight=${clientHeight}`
-      );
-      // Consider user "at bottom" if they are within 50px of it
-      const calculatedAtBottom = scrollHeight - scrollTop - clientHeight < 50;
-      console.log(`[UI] Calculated isAtBottom: ${calculatedAtBottom}`);
-      // Update state only if it changes to prevent infinite loops
-      if (calculatedAtBottom !== isAtBottom) {
-        console.log(`[UI] Updating isAtBottom state to: ${calculatedAtBottom}`);
-        setIsAtBottom(calculatedAtBottom);
+      // Consider "at bottom" if within 40px of the bottom
+      const isScrollAtBottom = scrollHeight - scrollTop - clientHeight < 40;
+
+      if (isScrollAtBottom !== isAtBottom) {
+        console.log(
+          "[UI] Scroll position change detected:",
+          isScrollAtBottom ? "at bottom" : "scrolled up"
+        );
+        setIsAtBottom(isScrollAtBottom);
       }
     };
 
-    console.log("[UI] Adding scroll listener to viewport");
-    viewport.addEventListener("scroll", handleScroll, { passive: true });
-
-    // Initial check in case content is already scrollable
-    handleScroll();
-
-    return () => {
-      console.log("[UI] Removing scroll listener from viewport");
-      if (viewport) {
-        // Check if viewport still exists on cleanup
-        viewport.removeEventListener("scroll", handleScroll);
-      }
-    };
-    // Keep dependency array as is, maybe update if ref itself changes, though unlikely for useRef
+    viewport.addEventListener("scroll", handleScroll);
+    return () => viewport.removeEventListener("scroll", handleScroll);
   }, [isAtBottom]);
 
   // Effect to detect when actual viewport is available and attach ref
   useEffect(() => {
+    console.log("[UI] Attempting to find viewport element");
     // Find the viewport element inside our ScrollArea after components mount
     const viewportElement = document.querySelector(
       ".chat-scroll-area > [data-radix-scroll-area-viewport]"
     );
+
     if (viewportElement) {
       console.log("[UI] Found viewport element:", viewportElement);
       // Store reference to the actual viewport element
@@ -415,12 +475,21 @@ function App() {
         `[UI] Initial scroll state: scrollHeight=${scrollHeight}, clientHeight=${clientHeight}`
       );
 
+      // Force initial scroll to bottom
+      element.scrollTo({
+        top: element.scrollHeight,
+        behavior: "auto",
+      });
+
       // Add mutation observer to detect DOM changes within messages
       const messagesContainer = viewportElement.querySelector(".space-y-4");
       if (messagesContainer) {
         console.log("[UI] Setting up mutation observer on messages container");
-        const observer = new MutationObserver((_mutations) => {
-          console.log("[UI] DOM mutation detected in messages container");
+        const observer = new MutationObserver((mutations) => {
+          console.log(
+            "[UI] DOM mutation detected in messages container",
+            mutations.length
+          );
           if (isAtBottom) {
             requestAnimationFrame(() => {
               element.scrollTo({
@@ -442,7 +511,28 @@ function App() {
         return () => observer.disconnect();
       }
     } else {
-      console.warn("[UI] Viewport element not found after component mount");
+      console.warn(
+        "[UI] Viewport element not found after component mount - will retry"
+      );
+      // Set up a retry mechanism
+      const retryTimeout = setTimeout(() => {
+        const retryViewportElement = document.querySelector(
+          ".chat-scroll-area > [data-radix-scroll-area-viewport]"
+        );
+        if (retryViewportElement) {
+          console.log(
+            "[UI] Found viewport element on retry:",
+            retryViewportElement
+          );
+          viewportRef.current = retryViewportElement as HTMLDivElement;
+          retryViewportElement.scrollTo({
+            top: retryViewportElement.scrollHeight,
+            behavior: "auto",
+          });
+        }
+      }, 500);
+
+      return () => clearTimeout(retryTimeout);
     }
   }, [isAtBottom]);
 
@@ -574,48 +664,106 @@ function App() {
                         // AI message content is TextContentItem[]
                         const aiContent = message.content as TextContentItem[]; // Type assertion
 
-                        if (Array.isArray(aiContent) && aiContent.length > 0) {
+                        // Helper function to check if content is empty
+                        const isEmptyContent = () => {
+                          if (
+                            !Array.isArray(aiContent) ||
+                            aiContent.length === 0
+                          )
+                            return true;
+                          if (
+                            aiContent.length === 1 &&
+                            aiContent[0].type === "text"
+                          ) {
+                            return (
+                              !aiContent[0].text?.value ||
+                              aiContent[0].text.value.trim() === ""
+                            );
+                          }
+                          return false;
+                        };
+
+                        // Check if this is a loading message (last AI message while loading)
+                        const isLoadingMessage =
+                          isLoading &&
+                          index === messages.length - 1 &&
+                          message.type === "ai";
+
+                        // First check: Is this a loading message?
+                        if (isLoadingMessage && isEmptyContent()) {
+                          // Show loading animation
+                          debug.log(
+                            "ui",
+                            `Showing loading animation for message ${index}`
+                          );
+                          messageContentElement = (
+                            <div className="flex items-center space-x-2">
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "0ms" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "150ms" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "300ms" }}
+                              ></div>
+                            </div>
+                          );
+                        }
+                        // Second check: Is this an empty message?
+                        else if (isEmptyContent()) {
+                          // Empty message but not loading - show placeholder
+                          messageContentElement = (
+                            <p className="text-gray-400">...</p>
+                          );
+                        }
+                        // Third case: We have content to display
+                        else {
                           // Combine all text items into a single string
                           const combinedText = aiContent
-                            .map((item) => item.text.value)
+                            .map((item) => {
+                              // Make sure item is a TextContentItem before accessing text
+                              if (
+                                item.type === "text" &&
+                                item.text &&
+                                typeof item.text.value === "string"
+                              ) {
+                                return item.text.value;
+                              }
+                              return "";
+                            })
                             .join("\n"); // Join with single newline
+
+                          // Debug: Log AI content on every render
+                          debug.log(
+                            "ui",
+                            `Rendering AI message ${index} with content length: ${combinedText.length}`
+                          );
 
                           // Pre-process the combined text before passing to Markdown parser
                           const processedText =
                             processTextForMarkdown(combinedText);
 
-                          messageContentElement = (
-                            <div className="prose prose-sm max-w-none ai-message-content">
-                              {/* Pass PRE-PROCESSED text to ReactMarkdown */}
-                              <ReactMarkdown components={markdownComponents}>
+                          // Check if this is an error message from the API
+                          if (processedText.startsWith("⚠️")) {
+                            messageContentElement = (
+                              <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
                                 {processedText}
-                              </ReactMarkdown>
-                            </div>
-                          );
-                        } else if (isLoading && index === messages.length - 1) {
-                          // Render animation for the last AI message if empty and loading
-                          messageContentElement = (
-                            <div className="flex items-center space-x-2">
-                              {/* Loading animation dots */}
-                              <div
-                                className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
-                                style={{ animationDelay: "0ms" }}
-                              ></div>
-                              <div
-                                className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
-                                style={{ animationDelay: "150ms" }}
-                              ></div>
-                              <div
-                                className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
-                                style={{ animationDelay: "300ms" }}
-                              ></div>
-                            </div>
-                          );
-                        } else {
-                          // Fallback for empty AI message (e.g., error state or before loading)
-                          messageContentElement = (
-                            <p className="text-gray-400">...</p>
-                          );
+                              </div>
+                            );
+                          } else {
+                            messageContentElement = (
+                              <div className="prose prose-sm max-w-none ai-message-content">
+                                {/* Pass PRE-PROCESSED text to ReactMarkdown */}
+                                <ReactMarkdown components={markdownComponents}>
+                                  {processedText}
+                                </ReactMarkdown>
+                              </div>
+                            );
+                          }
                         }
                       }
 
@@ -1192,6 +1340,19 @@ function App() {
           {error}
         </div>
       )}
+
+      {/* Debug tools */}
+      <div className="fixed bottom-4 left-4 z-50">
+        <Button
+          onClick={toggleDebug}
+          variant="outline"
+          size="sm"
+          className="bg-white border-gray-300 hover:bg-gray-100"
+        >
+          <Bug className="h-4 w-4 mr-1" />
+          {isDebugMode() ? "Hide Debug" : "Debug"}
+        </Button>
+      </div>
     </div>
   );
 }

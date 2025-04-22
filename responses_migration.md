@@ -4,11 +4,10 @@
 
 This document outlines the migration strategy for transitioning the MHA Digital Assistant from OpenAI's Assistant API to the new Responses API. The migration is prompted by OpenAI's announcement to deprecate the Assistant API in favor of the faster and more flexible Responses API.
 
-## Timeline and Context
+## Context
 
 - **Current Status**: MHA Assistant uses OpenAI's Assistant API
-- **Migration Timeline**: OpenAI will deprecate Assistant API in the first half of 2026, with 12 months support after deprecation date
-- **Target Completion**: Q2 2025 (ahead of official deprecation)
+- **OpenAI Timeline**: OpenAI will deprecate Assistant API in the first half of 2026, with 12 months support after deprecation date
 
 ## Benefits of Migration
 
@@ -18,90 +17,90 @@ This document outlines the migration strategy for transitioning the MHA Digital 
 4. **Future Compatibility**: Aligns with OpenAI's strategic direction
 5. **Architectural Improvements**: Opportunity to refactor and optimize our implementation
 
-## Migration Phases
+## Migration Checklist
 
-### Phase 1: Discovery and Planning (1 week)
+### Phase 1: Discovery and Planning
 
-1. **Audit Current Implementation**
+- [ ] **Audit Current Implementation**
 
-   - Map existing Assistant API usage in codebase
-   - Document current conversation flow patterns
-   - Inventory all custom functions and tool use
-   - Identify index usage patterns
+  - [ ] Map existing Assistant API usage in codebase
+  - [ ] Document current conversation flow patterns
+  - [ ] Inventory all custom functions and tool use
+  - [ ] Identify index usage patterns
 
-2. **Define Technical Requirements**
+- [ ] **Define Technical Requirements**
 
-   - Model selection (gpt-4o, gpt-4o-mini)
-   - Tool usage requirements
-   - Context management approach
-   - Persistence requirements
+  - [ ] Select appropriate models (gpt-4o, gpt-4o-mini)
+  - [ ] Determine tool usage requirements
+  - [ ] Decide on context management approach
+  - [ ] Establish persistence requirements
 
-3. **Create Test Cases**
-   - Define test scenarios to validate equivalent functionality
-   - Establish performance benchmarks
+- [ ] **Create Test Cases**
+  - [ ] Define test scenarios to validate equivalent functionality
+  - [ ] Establish performance benchmarks
 
-### Phase 2: Core Implementation (2 weeks)
+### Phase 2: Core Implementation
 
-1. **Setup Responses API Integration**
+- [ ] **Setup Responses API Integration**
 
-   - Update OpenAI SDK dependencies
-   - Configure environment variables
-   - Implement authentication
+  - [ ] Update OpenAI SDK dependencies
+  - [ ] Configure environment variables
+  - [ ] Implement authentication
 
-2. **Implement Basic Chat Functionality**
+- [ ] **Implement Basic Chat Functionality**
 
-   - Convert Assistant/Thread model to Responses model
-   - Implement conversation history with `previous_response_id`
-   - Handle API response format differences
+  - [ ] Convert Assistant/Thread model to Responses model
+  - [ ] Implement conversation history with `previous_response_id`
+  - [ ] Handle API response format differences
 
-3. **Port Policy Index Integration**
+- [ ] **Port Policy Index Integration**
 
-   - Implement file search tool
-   - Configure vector store IDs
-   - Update policy document handling
+  - [ ] Implement file search tool
+  - [ ] Configure vector store IDs
+  - [ ] Update policy document handling
 
-4. **Rebuild Instructions Handling**
-   - Update system prompt delivery
-   - Ensure consistent user context management
+- [ ] **Rebuild Instructions Handling**
+  - [ ] Update system prompt delivery
+  - [ ] Ensure consistent user context management
 
-### Phase 3: Advanced Features and Testing (2 weeks)
+### Phase 3: Advanced Features and Testing
 
-1. **Implement Tool Integration**
+- [ ] **Implement Tool Integration**
 
-   - Port custom functions as needed
-   - Implement new built-in tools (web search, etc.) if beneficial
-   - Update tool call handling
+  - [ ] Port custom functions as needed
+  - [ ] Implement new built-in tools (web search, etc.) if beneficial
+  - [ ] Update tool call handling
 
-2. **Build Conversation Management**
+- [ ] **Build Conversation Management**
 
-   - Handle conversation persistence
-   - Implement history truncation when needed
-   - Optimize token usage
+  - [ ] Handle conversation persistence
+  - [ ] Implement history truncation when needed
+  - [ ] Optimize token usage
 
-3. **Comprehensive Testing**
-   - Execute test cases defined in Phase 1
-   - Validate functionality across key policy areas
-   - Benchmark performance metrics
-   - Fix identified issues
+- [ ] **Comprehensive Testing**
+  - [ ] Execute test cases defined in Phase 1
+  - [ ] Validate functionality across key policy areas
+  - [ ] Benchmark performance metrics
+  - [ ] Fix identified issues
 
-### Phase 4: Optimization and Rollout (1 week)
+### Phase 4: Optimization and Rollout
 
-1. **Performance Optimization**
+- [ ] **Performance Optimization**
 
-   - Tune for response time
-   - Optimize token usage
-   - Implement caching if beneficial
+  - [ ] Tune for response time
+  - [ ] Optimize token usage
+  - [ ] Implement caching if beneficial
 
-2. **Documentation**
+- [ ] **Documentation**
 
-   - Update technical documentation
-   - Document architectural changes
-   - Create troubleshooting guide
+  - [ ] Update technical documentation
+  - [ ] Document architectural changes
+  - [ ] Create troubleshooting guide
 
-3. **Deployment Planning**
-   - Define rollout strategy
-   - Plan for monitoring and rollback if needed
-   - Prepare user communications
+- [ ] **Deployment Planning**
+  - [ ] Define rollout strategy
+  - [ ] Plan for monitoring and rollback if needed
+  - [ ] Prepare user communications
 
 ## Technical Implementation Details
 
