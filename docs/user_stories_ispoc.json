@@ -1,0 +1,155 @@
+{
+    "user_stories": [
+      {
+        "user_role": "Care Staff",
+        "story_id": 1,
+        "title": "Access to Knowledge Base",
+        "description": "As a care staff member, I want to quickly access the knowledge base to find care guidelines, HR policies, and procedures, so that I can provide consistent and compliant care to residents without delay."
+      },
+      {
+        "user_role": "Care Staff",
+        "story_id": 2,
+        "title": "Instant Responses to Routine Queries",
+        "description": "As a care staff member, I want to use an AI chatbot to get immediate answers to routine questions about policies or procedures, so that I can save time and reduce disruptions in my workflow."
+      },
+      {
+        "user_role": "Care Staff",
+        "story_id": 3,
+        "title": "IT Issue Resolution",
+        "description": "As a care staff member, I want the iSPOC system to assist with basic IT issues (like password resets) directly through the chatbot, so that I can resolve technical issues quickly without waiting for IT intervention."
+      },
+      {
+        "user_role": "Care Staff",
+        "story_id": 4,
+        "title": "Policy Clarification",
+        "description": "As a care staff member, I want iSPOC to provide clear, plain-language explanations of complex policies, so that I can easily understand compliance requirements and avoid policy violations."
+      },
+      {
+        "user_role": "Care Staff",
+        "story_id": 5,
+        "title": "Compliance Alerts",
+        "description": "As a care staff member, I want to receive alerts if my actions are at risk of violating a policy, so that I can take corrective actions immediately and avoid compliance issues."
+      },
+      {
+        "user_role": "Admin and Care Home Managers",
+        "story_id": 6,
+        "title": "Quick Policy Access and Role-Specific Guidance",
+        "description": "As an admin or care home manager, I want quick access to specific policy details and any implications for my role, so that I can ensure staff compliance and provide accurate support to care assistants and ancillary colleagues."
+      },
+      {
+        "user_role": "Admin and Care Home Managers",
+        "story_id": 7,
+        "title": "On-Behalf Query Submission",
+        "description": "As an admin or care home manager, I want to submit questions or issues on behalf of care assistants, so I can streamline their workflow and handle their concerns efficiently."
+      },
+      {
+        "user_role": "Admin and Care Home Managers",
+        "story_id": 8,
+        "title": "Digital Tool Access Support",
+        "description": "As an admin manager, I want easy access to support for logging into digital tools, so I can assist care staff with accessing digital support plans and other essential systems."
+      },
+      {
+        "user_role": "HR and Policy Teams",
+        "story_id": 9,
+        "title": "Knowledge Base Management",
+        "description": "As an HR or policy team member, I want to update the knowledge base with new or revised policies, so that staff have access to the latest guidelines and procedures."
+      },
+      {
+        "user_role": "HR and Policy Teams",
+        "story_id": 10,
+        "title": "Trend Analysis for Training Needs",
+        "description": "As an HR team member, I want access to data showing common staff queries and knowledge gaps, so that I can identify areas where staff need further training or support."
+      },
+      {
+        "user_role": "IT Staff",
+        "story_id": 11,
+        "title": "Ticket Generation and Escalation",
+        "description": "As an IT support staff member, I want iSPOC to automatically create a ticket and escalate complex technical issues that can’t be resolved by the chatbot, so that I can focus on specialized cases and ensure timely resolution."
+      },
+      {
+        "user_role": "IT Staff",
+        "story_id": 12,
+        "title": "Automated Tracking of Issue Resolution",
+        "description": "As an IT support staff member, I want the system to track the status of tickets and automatically update staff about their resolution status, so that I can maintain transparency without manually following up with each case."
+      },
+      {
+        "user_role": "IT Staff",
+        "story_id": 13,
+        "title": "System Maintenance and Analytics",
+        "description": "As an IT team member, I want access to analytics on response times and issue types, so that I can monitor system performance, address recurring technical problems, and plan resources accordingly."
+      },
+      {
+        "user_role": "Management",
+        "story_id": 14,
+        "title": "Monitoring Resource Utilization",
+        "description": "As a manager, I want iSPOC to highlight trends in staff inquiries and resource usage, so that I can allocate resources effectively and identify potential areas for improvement in staff support."
+      },
+      {
+        "user_role": "Management",
+        "story_id": 15,
+        "title": "Access to Compliance and Policy Usage Data",
+        "description": "As a compliance officer or manager, I want to see data on policy access, compliance alerts, and staff interactions with the knowledge base, so that I can assess policy adherence and ensure compliance requirements are met across the organization."
+      },
+      {
+        "user_role": "Management",
+        "story_id": 16,
+        "title": "Identifying Training Gaps",
+        "description": "As a manager, I want iSPOC to provide analytics on frequently asked questions and common staff issues, so that I can identify training gaps and proactively address them with targeted training programs."
+      },
+      {
+        "user_role": "Management",
+        "story_id": 17,
+        "title": "Evaluating Staff Support Satisfaction",
+        "description": "As a manager, I want to access reports on staff satisfaction with iSPOC responses and issue resolutions, so that I can ensure the system meets staff needs and implement improvements based on feedback."
+      },
+      {
+        "user_role": "Training and Development Coordinators",
+        "story_id": 18,
+        "title": "Targeted Training Recommendations",
+        "description": "As a training coordinator, I want iSPOC to analyze query trends and suggest relevant training modules for common issues, so that I can provide targeted training to improve staff knowledge in specific areas."
+      },
+      {
+        "user_role": "Training and Development Coordinators",
+        "story_id": 19,
+        "title": "Self-Service Training Modules Access",
+        "description": "As a training coordinator, I want staff to have access to self-service training modules linked directly to iSPOC responses, so that they can immediately address any knowledge gaps without waiting for formal training sessions."
+      },
+      {
+        "user_role": "Training and Development Coordinators",
+        "story_id": 20,
+        "title": "Feedback on Training Effectiveness",
+        "description": "As a training coordinator, I want to receive feedback on staff interactions with training modules and completion rates, so that I can evaluate the effectiveness of training resources and adjust them as needed."
+      },
+      {
+        "user_role": "Compliance and Legal Teams",
+        "story_id": 21,
+        "title": "Monitoring Policy Compliance Alerts",
+        "description": "As a compliance team member, I want to be notified of compliance deviations flagged by iSPOC, so that I can investigate and ensure corrective actions are taken."
+      },
+      {
+        "user_role": "Compliance and Legal Teams",
+        "story_id": 22,
+        "title": "Regular Policy Updates",
+        "description": "As a compliance team member, I want to ensure all policies in the knowledge base are up-to-date and accurately interpreted in plain language, so that staff can easily understand and adhere to compliance requirements."
+      },
+      {
+        "user_role": "Policy Team",
+        "story_id": 23,
+        "title": "Policy Consolidation and Standardization",
+        "description": "As a policy team member, I want to consolidate and standardize policies into a consistent format to streamline the chatbot's access and response accuracy."
+      },
+      {
+        "user_role": "Policy Team",
+        "story_id": 24,
+        "title": "Policy Relationship Mapping",
+        "description": "As a policy team member, I want iSPOC to help staff understand the relationships between different policies, so that they can better navigate complex policy implications relevant to their roles."
+      },
+      {
+        "user_role": "General Staff",
+        "story_id": 25,
+        "title": "Quick Reference for HR Questions",
+        "description": "As a general staff member, I want quick answers to common HR questions, such as leave entitlements, so I don’t need to wait for HR responses."
+      }
+    ]
+  }
+  

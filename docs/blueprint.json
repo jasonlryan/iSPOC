@@ -1,0 +1,156 @@
+{
+    "Background": {
+      "Objective": "Develop a Blueprint for Central Support to set out the vision for enabling functions.",
+      "Support": "New Philanthropy Capital supported mapping of current state, including cultural and operational assessments."
+    },
+    "Themes": [
+      "Increase connection to mission",
+      "Connection between Operations and Central Support",
+      "Increase empowerment and accountability",
+      "Single point of access for Central Support services",
+      "Optimize enabling functions"
+    ],
+    "Vision": {
+      "Focus": [
+        "Exemplary customer care",
+        "Unified and enabling culture",
+        "Digital advantage"
+      ]
+    },
+    "Digital Advantage": {
+      "Microsoft 365": {
+        "Purpose": "Align MHA with 'digital by design' goals, enhancing service, internal processes, and digital culture.",
+        "Functions": [
+          "Collaboration (Teams, SharePoint, OneDrive)",
+          "Productivity (Office Suite Integration, Task Management)",
+          "Automation and AI (Power Automate, Data Insights)"
+        ]
+      },
+      "Generative AI": {
+        "Definition": "Generative AI creates new content by learning and mimicking patterns in data.",
+        "Applications": [
+          "Content creation",
+          "Enhanced customer interaction",
+          "Innovative solutions"
+        ]
+      },
+      "Headline Benefits": [
+        "Operational efficiency and cost savings",
+        "Enhanced communication and engagement",
+        "Scalable digital solutions",
+        "Predictive analytics for occupancy"
+      ],
+      "Potential Use Cases": {
+        "Individualized Care Plans": "AI analyzes data to create tailored care plans.",
+        "Predictive Health Monitoring": "AI monitors health in real-time, predicting potential issues.",
+        "Cognitive and Social Support": "Conversational AI provides companionship for residents with dementia.",
+        "Optimized Staff Scheduling": "AI predicts staffing needs to optimize schedules.",
+        "Resource Management": "AI minimizes waste and ensures resource availability.",
+        "Risk Assessment and Management": "AI models assess resident health and operational risks proactively.",
+        "Personalized Resident and Family Communication": "AI tools facilitate regular updates for resident families, enhancing transparency.",
+        "Support for Non-Verbal Residents": "AI technologies assist with communication for non-verbal residents.",
+        "Automated Compliance Monitoring": "AI monitors compliance and flags deviations for timely interventions.",
+        "AI-Powered Monitoring Systems": "Real-time monitoring detects falls or unusual behaviors, alerting staff immediately."
+      },
+      "Risks": [
+        "Data privacy and security risks",
+        "Cybersecurity threats",
+        "Algorithmic bias",
+        "Errors in AI outputs",
+        "Over-reliance on AI",
+        "Loss of human touch",
+        "Technology integration issues",
+        "Colleague training and resistance",
+        "Compliance with AI regulations",
+        "Evolving regulatory landscape",
+        "Implementation and maintenance costs"
+      ],
+      "Mitigation": "Data protection measures, training, transparent AI use, balancing technology with human judgement."
+    },
+    "Using AI in Central Support": {
+      "Introduction": "Exploration of AI benefits and development of recommendations by ELT, Directors, and Digital Marketing Manager.",
+      "Top 10 AI Use Cases": [
+        { "Idea": "IT helpdesk (1st line)", "CI": 75, "SI": 62, "Ease": 5, "Score": 74.8 },
+        { "Idea": "Writing web copy", "CI": 65, "SI": 72, "Ease": 4, "Score": 70.8 },
+        { "Idea": "Managing internal enquiries (iSPoC)", "CI": 69, "SI": 63, "Ease": 3, "Score": 64.8 },
+        { "Idea": "Data Insights + Trends", "CI": 80, "SI": 48, "Ease": 3, "Score": 63.2 },
+        { "Idea": "Producing social media posts", "CI": 63, "SI": 52, "Ease": 4, "Score": 62.0 },
+        { "Idea": "Creating Google Ads copy", "CI": 63, "SI": 51, "Ease": 4, "Score": 61.6 },
+        { "Idea": "Recruitment screening & CV review", "CI": 58, "SI": 56, "Ease": 4, "Score": 61.6 },
+        { "Idea": "Meeting minutes + actions", "CI": 70, "SI": 44, "Ease": 4, "Score": 61.6 },
+        { "Idea": "Customer Service enquiries (eSPoC)", "CI": 39, "SI": 63, "Ease": 5, "Score": 60.8 },
+        { "Idea": "Turn policy into plain language", "CI": 47, "SI": 72, "Ease": 3, "Score": 59.6 }
+      ]
+    },
+    "AI Strategy": {
+      "Development": "Create a corporate AI strategy by June 2025 including a risk register and Data Protection Impact Assessment.",
+      "Stakeholder Involvement": [
+        "ELT",
+        "Associate Directors",
+        "Digital Marketing Manager"
+      ]
+    },
+    "AI-Driven Chatbots": {
+      "Purpose": "AI chatbots to handle common queries, support residents, families, or staff.",
+      "Benefits": [
+        "24/7 availability",
+        "Reduced workload",
+        "Standardized responses",
+        "Faster issue resolution",
+        "Self-service capabilities",
+        "Data collection on common queries",
+        "Performance monitoring for ongoing improvement"
+      ],
+      "Deployment": [
+        "Intranet",
+        "Email",
+        "Mobile app"
+      ]
+    },
+    "Single Point of Contact (SPoC)": {
+      "Overview": "AI-powered SPoC for accessing central support, automating common queries and escalating complex issues.",
+      "Benefits": [
+        "Reduction in overheads",
+        "24/7 support",
+        "Faster issue resolution",
+        "Consistent response"
+      ],
+      "Long-Term Benefits": [
+        "Data insights",
+        "Scalable support",
+        "Increased internal capacity",
+        "Operational excellence"
+      ],
+      "Plan": [
+        "Bot building with developer support",
+        "Customizable API to handle up to 800 policies",
+        "Consultancy estimated at £50k for implementation"
+      ]
+    },
+    "Marketing Uses": {
+      "Areas": [
+        "Writing web copy",
+        "Producing social media posts",
+        "Creating Google Ads copy"
+      ],
+      "Licenses": "8 ChatGPT licenses distributed among digital content and marketing managers."
+    },
+    "Universal Use Cases": {
+      "Meeting Assistant": {
+        "Tool": "Otter.ai for organizing and enhancing meetings, including scheduling, transcription, and action tracking.",
+        "Pilot": "Led by Jonathan; recommendation expected early 2025."
+      },
+      "Plain Language Policy": "AI-powered policy management system to summarize policies and respond to queries 24/7."
+    },
+    "Performance and Analysis Uses": {
+      "Potential": "Automation of the Project Management Office and exploration of use cases for Performance Insights."
+    },
+    "Recruitment Screening and CV Review": {
+      "Goal": "Potential replacement of current service with in-house AI to reduce costs.",
+      "Current Service": "We Are Yoke at £8k per month."
+    },
+    "Recommendations": {
+      "Corporate AI Strategy": "Develop a comprehensive AI strategy, feeding into the four blueprint structures for June 2025 ELT review."
+    }
+  }
+  

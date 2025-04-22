@@ -1,0 +1,76 @@
+{
+    "SpocSystem": {
+      "iSPOC": {
+        "Purpose": "Supports MHA staff with centralized access to internal resources, IT support, policy information, and operational guidance.",
+        "FunctionalComponents": {
+          "CentralizedQueryResolution": {
+            "KnowledgeBaseAccess": "Provides access to a searchable knowledge base including procedures, HR policies, care guidelines, and troubleshooting steps for IT issues.",
+            "FAQsAndCommonIssues": "Automatically updates the FAQ section based on frequently asked questions, refining responses over time.",
+            "InstantResponseAIChatbot": "Real-time AI chatbot addresses staff queries instantly."
+          },
+          "ITHelpdeskSupport": {
+            "FirstLineIssueResolution": "Automates responses to frequent technical issues like password resets and access queries.",
+            "TicketingAndEscalation": "Generates and tracks tickets for issues requiring specialized support, escalating to the appropriate IT team."
+          },
+          "PolicyAccessAndInterpretation": {
+            "PlainLanguageSummaries": "Converts complex policy language into plain language, improving accessibility and compliance.",
+            "24_7PolicyAccess": "Provides round-the-clock access to policy information for all staff.",
+            "AutomatedComplianceAlerts": "Flags and alerts staff to policy-related compliance deviations."
+          },
+          "InternalInquiryManagement": {
+            "TaskRoutingAssignment": "Routes inquiries to appropriate departments or personnel for timely handling of complex cases.",
+            "TrackingAndFollowUp": "Tracks inquiries and automatically follows up, providing status updates to requesters."
+          },
+          "TrainingAndDevelopmentSupport": {
+            "TrainingRecommendations": "Based on inquiries, suggests training materials to address identified knowledge gaps.",
+            "SelfServiceTrainingModules": "Links staff to training modules relevant to their queries."
+          },
+          "AnalyticsAndInsights": {
+            "UsageTrackingReporting": "Tracks common queries, response times, and satisfaction ratings.",
+            "TrendAnalysisResourceAllocation": "Highlights inquiry trends to assist in resource allocation and training needs identification."
+          }
+        }
+      },
+      "eSPOC": {
+        "Purpose": "Supports MHA residents, families, and external partners with centralized, automated assistance, enhancing engagement and transparency.",
+        "FunctionalComponents": {
+          "ResidentAndFamilyInquirySupport": {
+            "GeneralInquiryHandling": "Real-time chatbot responses to common questions for residents and families.",
+            "ResidentHealthCareUpdates": "Access to real-time updates on residents’ care and significant events, as permitted.",
+            "ExternalFAQAndKnowledgeBase": "Provides families with a knowledge base on MHA services, locations, and care policies."
+          },
+          "PersonalizedFamilyCommunication": {
+            "RegularWellBeingUpdates": "Scheduled updates on care activities, well-being, and social participation.",
+            "EventRemindersNotifications": "Sends notifications about events and activities to families."
+          },
+          "AutomatedTicketingEscalation": {
+            "FamilySupportTicketing": "Generates support tickets for complex inquiries, routing them to the appropriate team.",
+            "EscalationProtocols": "Escalates unresolved or urgent inquiries to senior management or specialized departments."
+          },
+          "EmergencySupportNotifications": {
+            "CriticalIncidentAlerts": "Notifies families in real-time of critical incidents (e.g., falls, medical events) and the staff’s response actions.",
+            "DirectLineImmediateConcerns": "Provides a direct line for urgent family inquiries, ensuring prompt staff response."
+          },
+          "ResidentCompanionEngagement": {
+            "ConversationalAICompanion": "Conversational support for residents, offering reminders, activity engagement, and reducing isolation.",
+            "ActivitySocialEngagementTracking": "Tracks resident activity participation, reporting to families and care staff."
+          },
+          "SupportForNonVerbalResidents": {
+            "AlternativeCommunicationTools": "Enables non-verbal residents to communicate needs via gestures or pre-set indicators."
+          },
+          "DataCollectionContinuousImprovement": {
+            "FeedbackMechanism": "Collects feedback from residents and families on satisfaction and areas for improvement.",
+            "DataDrivenInsights": "Analyzes inquiry patterns to inform management about common issues and potential improvements."
+          }
+        }
+      },
+      "SystemRequirements": {
+        "DataSecurityPrivacy": "Compliance with GDPR and other regulations to protect sensitive information.",
+        "UserAuthenticationAccessControl": "Ensures only authorized personnel and family members can access certain information.",
+        "SystemIntegration": "Integrates with MHA’s existing systems (e.g., EHRs, IT support, policy databases) for data consistency.",
+        "MobileWebAccessibility": "Accessible via mobile apps and web portals for flexibility.",
+        "PerformanceMonitoringAnalytics": "Includes a dashboard for monitoring usage, response times, resolution rates, and user satisfaction."
+      }
+    }
+  }
+  

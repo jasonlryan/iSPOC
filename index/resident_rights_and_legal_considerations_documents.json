@@ -1,0 +1,225 @@
+{
+    "Resident Rights and Legal Considerations": {
+        "Consent and Confidentiality": {
+            "Description": "Policies ensuring resident consent and data privacy.",
+            "Documents": [
+                {
+                    "Document": "Consent Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Privacy and Dignity",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Confidentiality in Service Locations",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Data Protection Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Data Protection Impact Assessment Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Colleagues Privacy Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Residents and Tenants Privacy Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "MHA Communities Privacy Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Relatives Privacy Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Marketing and Fundraising Privacy Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Sales and Letting Privacy Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Website Privacy Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "MHA Mobile Phone Apps Privacy Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Advocacy Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Resuscitation policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "CPR and DNACPR List",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "Mental Capacity & Legal Safeguards": {
+            "Description": "Documents on mental capacity evaluations, power of attorney, and legal protections.",
+            "Documents": [
+                {
+                    "Document": "Mental capacity and deprivation of liberty safeguards policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Mental capacity power of attorney listing",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Mental capacity advance airective or decision Notification",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Mental capacity assessment and best interests retirement living",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Mental capacity deprivation of libery safeguards log",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Adults Safeguarding Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Safeguarding Adults - Tracker",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Safeguarding Children Policy",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Safeguarding Adults - Competency",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Safeguarding Reporting Guide RADAR",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Errors and Safeguarding Guidance",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Disclosure Receipt - Safeguarding",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Digital Safeguarding Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Managing Clinical Risk Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Clinical Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Security and Key Holding",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Surveillance Policy",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Resident Behavior and Rights": {
+            "Description": "Policies governing resident conduct, rights, and participation.",
+            "Documents": [
+                {
+                    "Document": "Smoking and Smoking Devices",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Smoking Risk Prompts",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Unacceptable Behaviours",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Unacceptable Behaviours Procedure",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Participation and Feedback Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Autonomy And Choice",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Customer Care",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Advocacy",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Housing Rights and Complaints": {
+            "Description": "Policies and procedures for housing-related rights and complaints.",
+            "Documents": [
+                {
+                    "Document": "Housing Complaints Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Housing Complaints Leaflet",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Anti-Social Behaviour Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "ASB Letter 1",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "ASB Letter 2 and Agreement",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "Equality and Inclusion": {
+            "Description": "Policies ensuring equal rights, diversity and inclusion.",
+            "Documents": [
+                {
+                    "Document": "Equality, Diversity and Human Rights for People Using our Services",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Sexuality - Sex and Intimate Relationships",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Sexuality - Guidance",
+                    "Type": "Further Information"
+                }
+            ]
+        }
+    }
+} 

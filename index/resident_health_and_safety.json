@@ -1,0 +1,372 @@
+{
+    "Resident Health and Safety": {
+        "Emergency Procedures": {
+            "Description": "Policies related to emergency response, evacuation, and incident management.",
+            "Documents": [
+                {
+                    "Document": "Call Bell Response and Assistance",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Call Bell Response and Assistance - Audit",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Medical Emergency Procedures",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "CSP Emergency Information Sheet",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Business Continuity and Emergency Planning Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Emergency Disaster Management Plan Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Emergency Supply Contacts Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Emergency Grab Bag Checklist Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Fire Safety Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Fire Emergency Action Plan FEAP Form Care Homes",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Fire Emergency Action Plan FEAP Form Retirement Living",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Fire Safety Checklist Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Incident management checklist",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Emergency Events Like Fire Policy",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Tracheostomy - Emergency Management",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Laryngectomy - Emergency Management Flowchart",
+                    "Type": "Further Information"
+                }
+            ]
+        },
+        "Infection Control": {
+            "Description": "Guidelines on hygiene, sanitation, and infection prevention.",
+            "Documents": [
+                {
+                    "Document": "Standard Infection Control Precautions (SICPs) Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Managing Infections and Outbreaks",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Infection Control Annual Statement",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Infection Control Audit January",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Infection Control Audit April",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Infection Control Audit July",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Infection Control Audit October",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Infection Control - Outbreak Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Infection Control - Equipment Cleaning Checklist",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Infection Control - Equipment Decontamination Record",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Infection Control - Mattress and Cushion Inspection",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Retirement Living Infection Control Audit January",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Retirement Living Infection Control Audit April",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Retirement Living Infection Control Audit July",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Retirement Living Infection Control Audit October",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Infection Control - Infection on Premises Notice",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Infection Control",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Basics of Cleaning",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cleaning - What to use and Microfibre Guide",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Floor Cleaning Procedures- Excluding Carpets",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Carpet Cleaning",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cleaning Bathrooms and Toilets",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Standard Infection Control Procedures",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cleaning Tasks",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "National Cleaning Specification for Care Homes",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Cleaning Standards",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Microfiber Cleaning",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "COVID 19 RL Decontamination and Cleaning Processes",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Master cleaning schedules",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Example cleaning schedule - Epworth House",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Risk Assessments": {
+            "Description": "Documents covering safety assessments, such as falls, smoking, and general risk factors.",
+            "Documents": [
+                {
+                    "Document": "Management and Safe Use of Bedrails",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Kitchen Management",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Wheelchairs - Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Bedrails Risk Assessment and Review Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Infectious Illness and Outbreaks Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Moving and Handling - Risk Assessment Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Safe Swallowing (Choking) Risk Assessment",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Day Care Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Falls risk assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "HR Personal Files Audit Assessment Tool",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Equality Impact Assessment (EIA) Process and Guidance",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Equality Impact Assessment Form",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "New and Expectant Colleague Risk Assessment Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Catering Risk Assessment Form Small Scale Catering Food Safety",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Fire Safety Leased Premises Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Fire Safety Retirement Living Person Centred Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "COSHH Assessment Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Manual Handling Risk Assessment Checklist Form",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Lone Working Risk Assessment Form",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Full Workstation Risk Assessment Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Risk Assessment Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Risk Assessment Template Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Environmental Risk Assessment Procedure",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Care Homes and Retirement Living Environmental Risk Assessment Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "MHA Communities and Central Support Environmental Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "First Aid Needs Assessment Form",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Risk Assessment - For Applicants and Residents",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Legitimate Interest Assessment Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Quality Assessment Guidance",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Volunteer DBS Risk Assessment Form",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Wheelchairs and Safety Belts",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Wheelchairs - Guidance for Residents",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Advocacy Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Resuscitation policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "CPR and DNACPR List",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Managing Clinical Risk Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Clinical Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Security and Key Holding",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Equipment Safety": {
+            "Description": "Policies and procedures for equipment maintenance, checks and safety protocols.",
+            "Documents": [
+                {
+                    "Document": "Moving and Handling - Slings Register",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Moving and Handling - Equipment Register",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Hot Water Bottles and Heat Bags or Pads",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        }
+    }
+}

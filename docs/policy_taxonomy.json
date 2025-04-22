@@ -1,0 +1,40 @@
+{
+    "Resident Health and Safety": {
+        "Emergency Procedures": "Policies related to emergency response, evacuation, and incident management.",
+        "Infection Control": "Guidelines on hygiene, sanitation, and infection prevention.",
+        "Risk Assessments": "Documents covering safety assessments, such as falls, smoking, and general risk factors.",
+        "Equipment Safety": "Policies and procedures for equipment maintenance, checks and safety protocols."
+    },
+    "Medication and Health Management": {
+        "Medication Administration and Audits": "Policies on medication handling, administration, and audit processes.",
+        "Health Assessments": "Procedures for physical and mental health evaluations.",
+        "Chronic Illness and Condition Management": "Management of chronic conditions, illnesses, and long-term health concerns.",
+        "Clinical Procedures": "Clinical policies, procedures and guidance for specific medical conditions.",
+        "End of Life Care": "Policies and procedures for end of life planning and care."
+    },
+    "Resident Rights and Legal Considerations": {
+        "Consent and Confidentiality": "Policies ensuring resident consent and data privacy.",
+        "Mental Capacity & Legal Safeguards": "Documents on mental capacity evaluations, power of attorney, and legal protections.",
+        "Equality and Inclusion": "Policies ensuring equal rights, diversity and inclusion."
+    },
+    "Resident Care and Wellbeing": {
+        "Care Plans and Resident Support": "Individualized care planning, nutrition, meal specifications, and wellbeing activities.",
+        "Activities and Engagement": "Policies and procedures for resident activities and social engagement.",
+        "Community Services": "Policies for community-based services and volunteer programs."
+    },
+    "Operational and Facility Management": {
+        "Facility and Kitchen Operations": "Policies on kitchen management, food safety, and facility maintenance.",
+        "Financial and Budget Management": "Budgeting guidelines and financial management.",
+        "Business Planning": "Strategic and operational planning documents.",
+        "Premises Management": "Policies for managing and maintaining premises and facilities."
+    },
+    "Human Resources and Staff Training": {
+        "Staff Management and Development": "Policies on staff conduct, competency, training, and discipline.",
+        "Volunteer Management": "Policies and procedures for volunteer recruitment and management."
+    },
+    "Documentation and Reporting": {
+        "Forms and Templates": "Standard forms and templates for record-keeping.",
+        "Reporting and Compliance": "Audit checklists, compliance reports, and other formal assessments.",
+        "Service Administration": "Administrative procedures and documentation requirements."
+    }
+}

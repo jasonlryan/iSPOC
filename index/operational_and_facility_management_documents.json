@@ -1,0 +1,245 @@
+{
+    "Operational and Facility Management": {
+        "Facility and Kitchen Operations": {
+            "Description": "Policies on kitchen management, food safety, and facility maintenance.",
+            "Documents": [
+                {
+                    "Document": "Catering Manual Contents",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Aims and Objectives",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Meal Specification",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Menu Planning and Nutrition",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Special Requirements",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Customer Service",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Food Processing",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Kitchen Management",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Kitchen Maintenance",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Food Safety Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Kitchen Safety Guidelines",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cleaning Standards",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Master cleaning schedules",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Floor Cleaning Procedures- Excluding Carpets",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Carpet Cleaning",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cleaning Bathrooms and Toilets",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cleaning Tasks",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Microfiber Cleaning",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Infection Control - Equipment Cleaning Checklist",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Infection Control - Equipment Decontamination Record",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Contents",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "General Information",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Basics of Cleaning",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Controlling Odours",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cleaning - What to use and Microfibre Guide",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Standard Infection Control Procedures",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Pest Control",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Laundry",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cost Control",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Standards, Audits and Checklists",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Laundry Standards and Design",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Exceeding Expectations and Introducing the WOW",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "National Cleaning Specification for Care Homes",
+                    "Type": "Further Information"
+                }
+            ]
+        },
+        "Property Management": {
+            "Description": "Policies and procedures for property and contractor management.",
+            "Documents": [
+                {
+                    "Document": "MHA Allocations and Lettings Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Change of Tenancy or Lease Checklist",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Housing With Care Eligibility Criteria",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Empty Property Management Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Empty Property Standard",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Empty Properties Standard - Checklist",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Construction Management Policy and Guidance",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Contractor Management Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Contractor Management Guidance",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Contractor Management Statement of Compliance for Small Undertakings",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Estates Management Service Plan",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Vacant Room Checklist Form",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Financial and Budget Management": {
+            "Description": "Budgeting guidelines and financial management.",
+            "Documents": [
+                {
+                    "Document": "Budgeting",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Cash Handling",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Payments and Receipts",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Business Planning": {
+            "Description": "Strategic and operational planning documents.",
+            "Documents": [
+                {
+                    "Document": "Annual Business Planning Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Overview of Financial Arrangements for MHA Communities",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Premises Management": {
+            "Description": "Policies for managing and maintaining premises and facilities.",
+            "Documents": [
+                {
+                    "Document": "MHA Communities Premises, Facilities and Equipment Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Premises Daily Checklist Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Premises Weekly Checklist Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Premises Facilities And Equipment",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        }
+    }
+}

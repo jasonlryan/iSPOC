@@ -1,0 +1,319 @@
+{
+    "Medication and Health Management": {
+        "Medication Administration and Audits": {
+            "Description": "Policies on medication handling, administration, and audit processes.",
+            "Documents": [
+                {
+                    "Document": "Medication Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Medication Ordering Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Receipt and Storage of Medication Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Preparation for and Administration of Medication Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Return and Disposal of Medication Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Medication Incidents and Errors Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Controlled Drugs Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Medication Quality Assurance Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "MHA Carers medication notes",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Local Medication Arrangements Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Medication Fridge and Room Temperature Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Medication Profile and Risk Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Daily MAR Check Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Medication Stock Check",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Reasons for MAR Check Poster",
+                    "Type": "Further Information"
+                }
+            ]
+        },
+        "Health Assessments": {
+            "Description": "Procedures for physical and mental health evaluations.",
+            "Documents": [
+                {
+                    "Document": "Activities - Wellbeing Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Assessment",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "CSP Housing, Wellbeing and Care Assessment",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "Chronic Illness and Condition Management": {
+            "Description": "Management of chronic conditions, illnesses, and long-term health concerns.",
+            "Documents": [
+                {
+                    "Document": "Diabetes",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Diabetes - Hypoglycaemia",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Diabetes - Hyperglycaemia",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Continence Management Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Catheter Management Policy",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Tissue Viability - Wound Treatment and Management",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Distress Behaviour Support Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Gastrostomy - Support Plan",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "Clinical Procedures": {
+            "Description": "Clinical policies, procedures and guidance for specific medical conditions.",
+            "Documents": [
+                {
+                    "Document": "Safe Swallowing (Dysphagia) Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Sawallowing Problems - IDDSI Poster",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "IDDSI Food and Drink Consistency Audit",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Anaphylaxis Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Anaphylaxis - GP authorisation",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Anaphylaxis - Resuscitation Council Poster",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Anaphylaxis - Adrenaline Factsheet",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Oral Health",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Oral Health - Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Oral Health - Dementia Care",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Stoma Care",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Enhanced Observations Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Enhanced Observation Team Allocation",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Head Injury Assessment and Monitoring Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Head Injury - Glasgow Coma Score",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Tracheostomy - Emergency Management",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Laryngectomy - Emergency Management Flowchart",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Safe Swallowing (Choking) Risk Assessment",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "PRN Medication Procedures",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Specific Time Administration Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "PRN Medication Protocol Template",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "TMAR Non Medicated Creams Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "TMAR Prescribed Medicated Creams",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "Specialized Medication Management": {
+            "Description": "Procedures for specific types of medication and administration methods.",
+            "Documents": [
+                {
+                    "Document": "Medicated Skin Patches Policy",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Patch Check and Change Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Warfarin",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Warfarin Administration Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Subcutaneous Anticoagulant Administration Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Insulin Administration Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Blood Glucose Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Subcutaneous Infusion Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Syringe Driver Infusion Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "PEG RIG BGT Administration",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "Alternative Administration Routes": {
+            "Description": "Policies and procedures for alternative medication administration methods.",
+            "Documents": [
+                {
+                    "Document": "Homely Remedies and Over The Counter Medication Procedures",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Homely Remedies - GP Letter",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Homely Remedies Stock Check Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Self Medication Policy",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Self Medication Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Covert Medication Administration Policy",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Covert Medication Administration Checklist",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "End of Life Care": {
+            "Description": "Policies and procedures for end of life planning and care.",
+            "Documents": [
+                {
+                    "Document": "End of Life Planning",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "End of Life Planning - Final Wishes",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "End of Life Planning - Care after Death",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "End of Life - Charter",
+                    "Type": "Further Information"
+                }
+            ]
+        }
+    }
+} 

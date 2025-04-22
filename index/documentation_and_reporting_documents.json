@@ -1,0 +1,298 @@
+{
+    "Documentation and Reporting": {
+        "Forms and Templates": {
+            "Description": "Standard forms and templates for record-keeping.",
+            "Documents": [
+                {
+                    "Document": "Mealtime Experience Checklist for Care Homes and Retirement Living",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Performance Indicators",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Consent Form - Care Homes",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Consent Form - Retirement Living",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Consent Form - Nominated Individuals",
+                    "Type": "Form / Chart"
+                },
+{
+                    "Document": "Advocacy Information",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "CPR and DNACPR Information Leaflet",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Defibrillator Check Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Infection Control - Outbreak Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Managing Visiting Services Checklist",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Activities - Group Activity Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Activities - Individual Activity Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Activities - Feedback Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Equality - Accessible Information Standard",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Head Injury - Observation Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "End of Life Planning - Intensive Care Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Nutrition - Weight Record",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Hydration - Fluid Intake and Output Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Unacceptable Behaviours - Template Letters",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Oral Health - Mouth Care Record",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Enhanced Observation Record",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Reporting and Compliance": {
+            "Description": "Audit checklists, compliance reports, and other formal assessments.",
+            "Documents": [
+                {
+                    "Document": "ARCO Internal Compliance Audit Guidance and Form",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Data Protection Annual Audit Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "System Administration Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "External Audits",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Care Homes - Audit Schedule",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "SAM Quarterly Audit",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Area Manager Audit",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Area Manager Audit Wales",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Quality Review Group - Terms of Reference",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Data Subject Rights Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Personal data incident reporting procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Principles for Access to GP Systems",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Caldicott Guardian Principles",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Information Governance": {
+            "Description": "Policies and procedures for managing information and records.",
+            "Documents": [
+                {
+                    "Document": "Information Governance Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Retention Schedule Guidance",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Archive and Retrieval Log Fom",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Archive Box Label Template",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Data Processing Agreement Template Form",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Verbal Consent Record Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Appropriate Policy Document Guidance",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Data Sharing Agreement Template Form",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "IT Systems and Security": {
+            "Description": "Policies and procedures for IT systems and security management.",
+            "Documents": [
+                {
+                    "Document": "Computer Use Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Hardware Procurement and Allocation Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Security Patching Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Disposal and Recycling of IT Equipment Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Donated IT Equipment Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "IT Procurement and Funding Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Use of Residents Computers",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Use of Smart Wi-Fi Devices Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Use of Generative Artificial Intelligence (AI) Systems Policy",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Media and Communications": {
+            "Description": "Guidelines and templates for media and communications management.",
+            "Documents": [
+                {
+                    "Document": "Media Relations Protocol",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Media Release Briefing Template",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Media Enquiry Template",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Guidance for Media Interviews",
+                    "Type": "Further Information"
+                }
+            ]
+        },
+        "Service Administration": {
+            "Description": "Administrative procedures and documentation requirements.",
+            "Documents": [
+                {
+                    "Document": "Financial Record Keeping and Reporting",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "CSP Financial Information",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP File Contents",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP Front Page",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP Contact Details",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP Personal Profile and History",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP Communications",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP Back Signature Page",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP Confirmation of Changes Resident Signature",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP Event Log",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP RADAR Log",
+                    "Type": "Form / Chart"
+                }
+            ]
+        }
+    }
+}

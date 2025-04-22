@@ -1,0 +1,199 @@
+{
+    "policy_categories": {
+        "resident_health_and_safety": {
+            "name": "Resident Health and Safety",
+            "subcategories": {
+                "emergency_procedures": {
+                    "name": "Emergency Procedures",
+                    "description": "Policies related to emergency response, evacuation, and incident management."
+                },
+                "infection_control": {
+                    "name": "Infection Control",
+                    "description": "Guidelines on hygiene, sanitation, and infection prevention."
+                },
+                "risk_assessments": {
+                    "name": "Risk Assessments",
+                    "description": "Documents covering safety assessments, such as falls, smoking, and general risk factors."
+                },
+                "equipment_safety": {
+                    "name": "Equipment Safety",
+                    "description": "Policies and procedures for equipment maintenance, checks and safety protocols."
+                },
+                "health_safety_management": {
+                    "name": "Health & Safety Management",
+                    "description": "Core health and safety policies and audit procedures."
+                },
+                "environmental_safety": {
+                    "name": "Environmental Safety",
+                    "description": "Policies for managing environmental hazards and conditions."
+                },
+                "workplace_safety": {
+                    "name": "Workplace Safety",
+                    "description": "Policies and procedures for workplace safety and hazard management."
+                }
+            }
+        },
+        "medication_and_health_management": {
+            "name": "Medication and Health Management",
+            "subcategories": {
+                "medication_administration_and_audits": {
+                    "name": "Medication Administration and Audits",
+                    "description": "Policies on medication handling, administration, and audit processes."
+                },
+                "health_assessments": {
+                    "name": "Health Assessments",
+                    "description": "Procedures for physical and mental health evaluations."
+                },
+                "chronic_illness_and_condition_management": {
+                    "name": "Chronic Illness and Condition Management",
+                    "description": "Management of chronic conditions, illnesses, and long-term health concerns."
+                },
+                "clinical_procedures": {
+                    "name": "Clinical Procedures",
+                    "description": "Clinical policies, procedures and guidance for specific medical conditions."
+                },
+                "specialized_medication_management": {
+                    "name": "Specialized Medication Management",
+                    "description": "Procedures for specific types of medication and administration methods."
+                },
+                "alternative_administration_routes": {
+                    "name": "Alternative Administration Routes",
+                    "description": "Policies and procedures for alternative medication administration methods."
+                },
+                "end_of_life_care": {
+                    "name": "End of Life Care",
+                    "description": "Policies and procedures for end of life planning and care."
+                }
+            }
+        },
+        "resident_rights_and_legal_considerations": {
+            "name": "Resident Rights and Legal Considerations",
+            "subcategories": {
+                "consent_and_confidentiality": {
+                    "name": "Consent and Confidentiality",
+                    "description": "Policies ensuring resident consent and data privacy."
+                },
+                "mental_capacity_and_legal_safeguards": {
+                    "name": "Mental Capacity & Legal Safeguards",
+                    "description": "Documents on mental capacity evaluations, power of attorney, and legal protections."
+                },
+                "resident_behavior_and_rights": {
+                    "name": "Resident Behavior and Rights",
+                    "description": "Policies governing resident conduct, rights, and participation."
+                },
+                "housing_rights_and_complaints": {
+                    "name": "Housing Rights and Complaints",
+                    "description": "Policies and procedures for housing-related rights and complaints."
+                },
+                "equality_and_inclusion": {
+                    "name": "Equality and Inclusion",
+                    "description": "Policies ensuring equal rights, diversity and inclusion."
+                }
+            }
+        },
+        "resident_care_and_wellbeing": {
+            "name": "Resident Care and Wellbeing",
+            "subcategories": {
+                "care_plans_and_resident_support": {
+                    "name": "Care Plans and Resident Support",
+                    "description": "Individualized care planning, nutrition, meal specifications, and wellbeing activities."
+                },
+                "activities_and_engagement": {
+                    "name": "Activities and Engagement",
+                    "description": "Policies and procedures for resident activities and social engagement."
+                },
+                "specialist_care_support": {
+                    "name": "Specialist Care Support",
+                    "description": "Specialized care services and therapeutic interventions."
+                },
+                "tissue_viability_and_skin_care": {
+                    "name": "Tissue Viability and Skin Care",
+                    "description": "Policies and procedures for skin care and pressure area management."
+                },
+                "community_services": {
+                    "name": "Community Services",
+                    "description": "Policies for community-based services and volunteer programs."
+                }
+            }
+        },
+        "documentation_and_reporting": {
+            "name": "Documentation and Reporting",
+            "subcategories": {
+                "forms_and_templates": {
+                    "name": "Forms and Templates",
+                    "description": "Standard forms and templates for record-keeping."
+                },
+                "reporting_and_compliance": {
+                    "name": "Reporting and Compliance",
+                    "description": "Audit checklists, compliance reports, and other formal assessments."
+                },
+                "information_governance": {
+                    "name": "Information Governance",
+                    "description": "Policies and procedures for managing information and records."
+                },
+                "it_systems_and_security": {
+                    "name": "IT Systems and Security",
+                    "description": "Policies and procedures for IT systems and security management."
+                },
+                "media_and_communications": {
+                    "name": "Media and Communications",
+                    "description": "Guidelines and templates for media and communications management."
+                },
+                "service_administration": {
+                    "name": "Service Administration",
+                    "description": "Administrative procedures and documentation requirements."
+                }
+            }
+        },
+        "operational_and_facility_management": {
+            "name": "Operational and Facility Management",
+            "subcategories": {
+                "facility_and_kitchen_operations": {
+                    "name": "Facility and Kitchen Operations",
+                    "description": "Policies on kitchen management, food safety, and facility maintenance."
+                },
+                "property_management": {
+                    "name": "Property Management",
+                    "description": "Policies and procedures for property and contractor management."
+                },
+                "financial_and_budget_management": {
+                    "name": "Financial and Budget Management",
+                    "description": "Budgeting guidelines and financial management."
+                },
+                "business_planning": {
+                    "name": "Business Planning",
+                    "description": "Strategic and operational planning documents."
+                },
+                "premises_management": {
+                    "name": "Premises Management",
+                    "description": "Policies for managing and maintaining premises and facilities."
+                }
+            }
+        },
+        "human_resources_and_staff_training": {
+            "name": "Human Resources and Staff Training",
+            "subcategories": {
+                "staff_management_and_development": {
+                    "name": "Staff Management and Development",
+                    "description": "Policies on staff conduct, competency, training, and discipline."
+                },
+                "equality_and_accessibility": {
+                    "name": "Equality and Accessibility",
+                    "description": "Policies ensuring equal opportunities and reasonable adjustments."
+                },
+                "employment_administration": {
+                    "name": "Employment Administration",
+                    "description": "Policies and procedures for employment lifecycle management."
+                },
+                "compliance_and_screening": {
+                    "name": "Compliance and Screening",
+                    "description": "Policies and procedures for employment checks and compliance."
+                },
+                "volunteer_management": {
+                    "name": "Volunteer Management",
+                    "description": "Policies and procedures for volunteer recruitment and management."
+                }
+            }
+        }
+    }
+} 

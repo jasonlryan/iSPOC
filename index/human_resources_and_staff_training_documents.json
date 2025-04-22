@@ -1,0 +1,297 @@
+{
+    "Human Resources and Staff Training": {
+        "Staff Management and Development": {
+            "Description": "Policies on staff conduct, competency, training, and discipline.",
+            "Documents": [
+                {
+                    "Document": "Performance Indicators",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Staffing",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Terrorism, Suspicious Behaviours, Packages and Bomb Threats",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Enhanced Observation Competency - Care Assistant",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Enhanced Observation Competency - Person in Charge",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Medication - Competency Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Medication - Staff Training and Authorised Signature List",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "CSP Staff Signature List",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Staff Trained and Authorised Signature List",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Annual Competency Assessment",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Recruitment and Selection Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "International Recruitment Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "HR Personal Files Audit Assessment Tool",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "People Development Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Competency Framework Guidance",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Discipline Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Discipline Confirmation Fact finding Concluded Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Suspension from Work Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Alternative to Suspension Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Sickness and Suspension Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Invite to Investigation Meeting Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Investigation Meeting Minutes Colleague Under Investigation Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Investigation Meeting Minutes Witness Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Communication to Colleague Signing Minutes Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Suspension Lifted Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Investigation Outcome No Formal Action Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Investigation Outcome Invite to Disciplinary Hearing Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Disciplinary Meeting Minutes Template Form",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Disciplinary Hearing Outcome No Formal Sanction Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Disciplinary Hearing Outcome First OR Final Written Warning Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Disciplinary Hearing Outcome Dismissal Letter template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Invite to Appeal Hearing Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Appeal Meeting Minutes Template Form",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Discipline Appeal Hearing Outcome Letter Template",
+                    "Type": "Template"
+                },
+                {
+                    "Document": "Full Workstation Risk Assessment Form",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Lone Working Risk Assessment Form",
+                    "Type": "Further Information"
+                },
+                {
+                    "Document": "Acting up and Secondment Arrangements Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "International Pre-Registration Nurse Checklist",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Senior Healthcare Worker Certificate of Sponsorship Compliance Checklist",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Registered Nurses Certificate of Sponsorship Checklist",
+                    "Type": "Form / Chart"
+                },
+                {
+                    "Document": "Vaccination Policy - Colleagues and Volunteers",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Agency Worker Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "MHA Agency Checklist",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Employment and Re-Employment Eligibility and Screening Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Personal File Checklist",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Personal File Missing Document Report Form",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Equality and Accessibility": {
+            "Description": "Policies ensuring equal opportunities and reasonable adjustments.",
+            "Documents": [
+                {
+                    "Document": "Equality Impact Assessment (EIA) Process and Guidance",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Equality Impact Assessment Form",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Recruiting, Managing, and Developing People with a Disibility or Health Condition",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Reasonable Adjustment Action Plan Form",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "Employment Administration": {
+            "Description": "Policies and procedures for employment lifecycle management.",
+            "Documents": [
+                {
+                    "Document": "Colleague Relocation Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Colleague Relocation Expenses Reimbursement Tracker Form",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Colleagues Leaving MHA Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Leavers Checklist",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Colleague Benefits Policy [HIDDEN]",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Recommend a Friend Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Recommend a Friend Referral Form",
+                    "Type": "Form / Chart"
+                }
+            ]
+        },
+        "Compliance and Screening": {
+            "Description": "Policies and procedures for employment checks and compliance.",
+            "Documents": [
+                {
+                    "Document": "DBS Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "DBS Disclosure Certificate Record",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "DBS & Right to Work Evidence Required for all Interviews",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Right to Work in the UK Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        },
+        "Volunteer Management": {
+            "Description": "Policies and procedures for volunteer recruitment and management.",
+            "Documents": [
+                {
+                    "Document": "Volunteer Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Volunteer Recruitment and Selection Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Volunteer DBS Risk Assessment Form",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Volunteer Expenses Policy",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Volunteer Problem Solving Policy and Procedure",
+                    "Type": "Policy / Guidance"
+                },
+                {
+                    "Document": "Befriending Policy",
+                    "Type": "Policy / Guidance"
+                }
+            ]
+        }
+    }
+}

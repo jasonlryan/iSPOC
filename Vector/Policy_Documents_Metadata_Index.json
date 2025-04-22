@@ -1,0 +1,214 @@
+{
+    "Policy Documents": [
+        {
+            "Document": "Adults Safeguarding Policy",
+            "File": "CP019 Adults Safeguarding Policy (5).txt",
+            "Description": "Guidelines for safeguarding vulnerable adults and ensuring their protection from harm.",
+            "Questions Answered": [
+                "What are the procedures for reporting safeguarding concerns?",
+                "How are safeguarding incidents investigated?",
+                "What training is required for staff regarding adult safeguarding?"
+            ]
+        },
+        {
+            "Document": "Resuscitation Policy",
+            "File": "CP006 Resuscitation Policy.txt",
+            "Description": "Comprehensive guidance on resuscitation procedures, including CPR protocols, DNACPR decisions, and the use of automated external defibrillators.",
+            "Questions Answered": [
+                "What are the procedures for cardiopulmonary resuscitation (CPR)?",
+                "How should Do Not Attempt Resuscitation (DNACPR) decisions be managed?",
+                "What are the protocols for using and maintaining automated external defibrillators (AEDs)?"
+            ]
+        },
+        {
+            "Document": "Managing Infections and Outbreaks Policy",
+            "File": "CP008a Managing Infections and Outbreaks.txt",
+            "Description": "Guidelines for preventing, identifying, and managing infectious diseases and outbreak situations in care settings.",
+            "Questions Answered": [
+                "What procedures should be followed during an infection outbreak?",
+                "How should infection control measures be implemented?",
+                "What are the reporting requirements for infectious diseases?"
+            ]
+        },
+        {
+            "Document": "Head Injury Assessment and Monitoring Policy",
+            "File": "CP017 Head Injury Assessment and Monitoring Policy.txt",
+            "Description": "Procedures for assessing, monitoring, and managing head injuries, including risk assessment and emergency response protocols.",
+            "Questions Answered": [
+                "What are the initial assessment procedures for head injuries?",
+                "How should head injury monitoring be conducted?",
+                "When should immediate medical attention be sought for head injuries?"
+            ]
+        },
+        {
+            "Document": "Medication Policy Retirement Living",
+            "File": "DP306 Medication Policy Retirement Living.txt",
+            "Description": "Comprehensive guidance on medication management in retirement living settings, including administration, storage, and error handling procedures.",
+            "Questions Answered": [
+                "What are the procedures for safe medication administration in retirement living?",
+                "How should medication errors be reported and managed?",
+                "What training is required for staff handling medications?"
+            ]
+        },
+        {
+            "Document": "Fire Safety Policy and Procedure",
+            "File": "HS311 Fire Safety Policy and Procedure.txt",
+            "Description": "Comprehensive guidance on fire safety procedures, risk assessments, and emergency evacuation protocols.",
+            "Questions Answered": [
+                "What are the fire risk assessment requirements?",
+                "How should fire emergency evacuation plans be implemented?",
+                "What are the procedures for fire drills and alarm system maintenance?"
+            ]
+        },
+        {
+            "Document": "Psychotropic Medication Policy",
+            "File": "Med 221 Psychotropic Medication (2).txt",
+            "Description": "Guidelines for the management and monitoring of psychotropic medication administration.",
+            "Questions Answered": [
+                "What are the procedures for psychotropic medication management?",
+                "How should side effects be monitored and managed?",
+                "What are the roles and responsibilities in medication administration?"
+            ]
+        },
+        {
+            "Document": "Sickness Absence Management Policy",
+            "File": "HR7.1 Sickness Absence Management Policy.txt",
+            "Description": "Guidelines for managing and supporting staff during periods of sickness absence.",
+            "Questions Answered": [
+                "What are the procedures for reporting sickness absence?",
+                "How is long-term sickness managed?",
+                "What support is available for staff returning to work?"
+            ]
+        },
+        {
+            "Document": "Special Leave Policy and Procedure",
+            "File": "HR7.2 Special Leave Policy and Procedure.txt",
+            "Description": "Outlines various types of special leave and procedures for requesting them.",
+            "Questions Answered": [
+                "What types of special leave are available?",
+                "How should special leave be requested?",
+                "What documentation is required for special leave?"
+            ]
+        },
+        {
+            "Document": "Family Leave Policy and Procedure",
+            "File": "HR7.3 Family Leave Policy and Procedure (1).txt",
+            "Description": "Defines procedures and entitlements regarding family leave for employees.",
+            "Questions Answered": [
+                "What are the eligibility criteria for family leave?",
+                "How should applications for family leave be submitted?",
+                "What are the rights of employees during family leave?"
+            ]
+        },
+        {
+            "Document": "Annual Leave Holiday Arrangements Policy",
+            "File": "HR7.4 Annual Leave Holiday Arrangements Policy (2).txt",
+            "Description": "Details the procedures and guidelines for requesting and managing annual leave.",
+            "Questions Answered": [
+                "How is annual leave calculated and allocated?",
+                "What is the process for requesting annual leave?",
+                "How are conflicting leave requests managed?"
+            ]
+        },
+        {
+            "Document": "Discipline Policy and Procedure",
+            "File": "HR8.2 Discipline Policy and Procedure (5).txt",
+            "Description": "Comprehensive framework for managing disciplinary matters, from informal procedures to formal actions.",
+            "Questions Answered": [
+                "What are the stages in the disciplinary procedure?",
+                "How are investigations conducted?",
+                "What constitutes gross misconduct and how is it handled?"
+            ]
+        },
+        {
+            "Document": "Meals for Colleagues Policy and Procedure",
+            "File": "HR8.11 Meals for Colleagues Policy and Procedure (2).txt",
+            "Description": "Guidelines for providing and managing meals for staff across different MHA facilities.",
+            "Questions Answered": [
+                "What are the meal provision arrangements in different MHA settings?",
+                "How are dietary requirements and preferences handled?",
+                "What are the procedures for meal requests and approvals?"
+            ]
+        },
+        {
+            "Document": "Whistleblowing Policy and Procedure",
+            "File": "HR9.5 Whistleblowing Policy and Procedure .txt",
+            "Description": "Guidelines for raising and handling concerns about workplace malpractice or wrongdoing.",
+            "Questions Answered": [
+                "How can staff raise concerns internally and externally?",
+                "What protections are available for whistleblowers?",
+                "How are whistleblowing investigations conducted?"
+            ]
+        },
+        {
+            "Document": "Catheter Management Policy",
+            "File": "HP108a Catheter Management Policy.txt",
+            "Description": "Guidance on catheter care, including insertion and infection control.",
+            "Questions Answered": [
+                "What standard operating procedures are involved in catheter management?",
+                "How should catheter complications be addressed?",
+                "What training is required for staff involved in catheter care?"
+            ]
+        },
+        {
+            "Document": "Business Expenses Policy and Procedure",
+            "File": "FP003 Business Expenses Policy and Procedure (1).txt",
+            "Description": "Covers procedures for claiming and reimbursement of business expenses.",
+            "Questions Answered": [
+                "What procedures are in place for claiming business expenses?",
+                "What types of expenses are considered reimbursable?",
+                "How should colleagues submit expense claims?"
+            ]
+        },
+        {
+            "Document": "Complaints Policy and Procedure",
+            "File": "G200 Complaints Policy and Procedure.txt",
+            "Description": "Comprehensive framework for managing and resolving complaints across all MHA services, including a 4-stage complaint handling process and procedures for recording, investigating, and responding to complaints.",
+            "Questions Answered": [
+                "What is the process for handling and resolving complaints?",
+                "What are the timeframes for responding to complaints at different stages?",
+                "How should complaints be recorded and monitored?"
+            ]
+        },
+        {
+            "Document": "Falls Prevention and Risk Management Policy",
+            "File": "HP118 Falls Prevention and Risk Management Policy.txt",
+            "Description": "Guidelines for falls assessment, prevention, management and reporting responsibilities, including post-falls procedures and risk management strategies for older people in care settings.",
+            "Questions Answered": [
+                "What are the procedures for assessing and preventing falls risks?",
+                "What actions should be taken after a fall occurs?",
+                "How should falls incidents be reported and monitored?"
+            ]
+        },
+        {
+            "Document": "Distress Behaviour Support Policy",
+            "File": "HP119 Distress Behaviour Support Policy.txt",
+            "Description": "Framework for understanding, preventing and managing distress behaviors, including assessment procedures, intervention strategies and support planning for individuals showing signs of distress.",
+            "Questions Answered": [
+                "How should distress behaviors be assessed and supported?",
+                "What are the signs and causes of distress behavior?",
+                "What interventions can be used to manage distress behavior?"
+            ]
+        },
+        {
+            "Document": "Recruitment and Selection Policy",
+            "File": "HR2.0 Recruitment and Selection.txt",
+            "Description": "Guidelines for effective and fair recruitment practices, including advertising positions, selection processes, and pre-employment checks to ensure the right staff are recruited with appropriate skills and experience.",
+            "Questions Answered": [
+                "What is the process for recruiting and selecting new staff?",
+                "What pre-employment checks are required?",
+                "How should job interviews be conducted and documented?"
+            ]
+        },
+        {
+            "Document": "Equality, Diversity and Inclusion Policy",
+            "File": "HR4.2 Equality, Diversity, and Inclusion Policy.txt",
+            "Description": "Framework for promoting equality, diversity and inclusion in service provision and employment, ensuring compliance with the Equality Act 2010 and protection of all protected characteristics.",
+            "Questions Answered": [
+                "How does MHA ensure equality in service provision and employment?",
+                "What are the protected characteristics under the Equality Act?",
+                "How are equality impact assessments conducted?"
+            ]
+        }
+    ]
+}
