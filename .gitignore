@@ -1,3 +1,31 @@
+# MHA project gitignore
+
+# Backup and temporary files
+Policy_Documents_Metadata_Index_*.json
+.gitignore_files/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -11,8 +39,4 @@ Thumbs.db
 /raw policies/
 
 # Node modules
-node_modules/
-
-# Build files
-dist/
-build/ 
+node_modules/ 
