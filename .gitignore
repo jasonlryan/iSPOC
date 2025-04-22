@@ -1,33 +1,18 @@
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production
-/build
-/dist
-
-# misc
+# OS generated files
 .DS_Store
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Ignore raw policies folder
+/raw policies/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Node modules
+node_modules/
+
+# Build files
+dist/
+build/ 
