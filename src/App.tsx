@@ -1,17 +1,10 @@
-import React, { useState, useEffect, useRef, MutableRefObject } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import {
   MessageSquare,
   Send,
-  Home,
   Phone,
-  Calendar,
-  Users,
   HelpCircle,
-  Search,
-  MapPin,
-  Building2,
-  Heart,
   Settings,
   Menu,
   X,
@@ -21,6 +14,7 @@ import {
   Train,
   FileQuestion,
   ClipboardList,
+  MessageSquarePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -70,10 +64,12 @@ function App() {
   const [aboutExpanded, setAboutExpanded] = useState(true);
   const [evaluationExpanded, setEvaluationExpanded] = useState(true);
   const [disclaimerExpanded, setDisclaimerExpanded] = useState(true);
+  const [feedbackExpanded, setFeedbackExpanded] = useState(true);
   const [mobileQuestionsExpanded, setMobileQuestionsExpanded] = useState(true);
   const [mobileAboutExpanded, setMobileAboutExpanded] = useState(true);
   const [mobileEvaluationExpanded, setMobileEvaluationExpanded] =
     useState(true);
+  const [mobileFeedbackExpanded, setMobileFeedbackExpanded] = useState(true);
   const [mobileDisclaimerExpanded, setMobileDisclaimerExpanded] =
     useState(true);
 
@@ -423,7 +419,7 @@ function App() {
       const messagesContainer = viewportElement.querySelector(".space-y-4");
       if (messagesContainer) {
         console.log("[UI] Setting up mutation observer on messages container");
-        const observer = new MutationObserver((mutations) => {
+        const observer = new MutationObserver((_mutations) => {
           console.log("[UI] DOM mutation detected in messages container");
           if (isAtBottom) {
             requestAnimationFrame(() => {
@@ -839,6 +835,50 @@ function App() {
               )}
             </Card>
 
+            {/* Pilot Feedback Panel */}
+            <Card className="p-4 bg-white rounded-lg text-sm text-gray-600">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-mha-blue">
+                  Pilot Feedback
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-1 h-auto"
+                  onClick={() => setFeedbackExpanded(!feedbackExpanded)}
+                >
+                  {feedbackExpanded ? (
+                    <ChevronUp className="h-5 w-5 text-mha-blue" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-mha-blue" />
+                  )}
+                </Button>
+              </div>
+              {feedbackExpanded && (
+                <div className="space-y-2">
+                  <p className="leading-relaxed">
+                    Your feedback is essential to improving this Policy
+                    Assistant. By sharing your experiences, you help us refine
+                    the tool to better serve everyone at MHA.
+                  </p>
+                  <p className="leading-relaxed">
+                    We want to hear about your experience - what works well,
+                    what could be improved, and any suggestions you have for
+                    making this tool more useful in your daily work.
+                  </p>
+                  <div className="mt-4">
+                    <Button
+                      className="w-full bg-mha-pink hover:bg-mha-pink-dark text-white"
+                      onClick={() => window.open("/feedback", "_blank")}
+                    >
+                      <MessageSquarePlus className="h-4 w-4 mr-2" />
+                      Give Feedback
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+
             <Card className="p-4 bg-mha-blue-10 rounded-lg text-sm text-gray-600">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-mha-blue">
@@ -1058,6 +1098,52 @@ function App() {
                       residents' money and valuables, and what are the
                       record-keeping requirements?
                     </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Pilot Feedback Panel */}
+            <div className="p-4 bg-white rounded-lg text-sm text-gray-600">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-mha-blue">
+                  Pilot Feedback
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-1 h-auto"
+                  onClick={() =>
+                    setMobileFeedbackExpanded(!mobileFeedbackExpanded)
+                  }
+                >
+                  {mobileFeedbackExpanded ? (
+                    <ChevronUp className="h-5 w-5 text-mha-blue" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-mha-blue" />
+                  )}
+                </Button>
+              </div>
+              {mobileFeedbackExpanded && (
+                <div className="space-y-2">
+                  <p className="leading-relaxed">
+                    Your feedback is essential to improving this Policy
+                    Assistant. By sharing your experiences, you help us refine
+                    the tool to better serve everyone at MHA.
+                  </p>
+                  <p className="leading-relaxed">
+                    We want to hear about your experience - what works well,
+                    what could be improved, and any suggestions you have for
+                    making this tool more useful in your daily work.
+                  </p>
+                  <div className="mt-4">
+                    <Button
+                      className="w-full bg-mha-pink hover:bg-mha-pink-dark text-white"
+                      onClick={() => window.open("/feedback", "_blank")}
+                    >
+                      <MessageSquarePlus className="h-4 w-4 mr-2" />
+                      Give Feedback
+                    </Button>
                   </div>
                 </div>
               )}
