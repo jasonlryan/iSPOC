@@ -371,7 +371,7 @@ function App() {
                           setMessages((prev) => {
                             // Keep all messages except the JSON message
                             const messagesWithoutJson = prev.filter(
-                              (msg, i) => i !== prev.length - 1
+                              (_, i) => i !== prev.length - 1
                             );
 
                             // Clear the previous response ID to avoid continuing the conversation
