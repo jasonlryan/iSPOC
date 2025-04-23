@@ -25,6 +25,8 @@ import { createResponse } from "./lib/api";
 import { EnvDebug } from "./components/EnvDebug";
 import { MHALogo } from "./components/MHALogo";
 import { debug, initDebug, toggleDebug, isDebugMode } from "./lib/debug";
+import systemPrompt from "./prompts/system_prompt.md?raw";
+import feedbackPrompt from "./prompts/feedback_prompt.md?raw";
 
 // Initialize debug mode
 initDebug();
@@ -219,6 +221,13 @@ function App() {
     string | undefined
   >(undefined);
 
+  // Add two pieces of React state as specified in the instructions
+  const [mode, setMode] = useState<"policy" | "feedback">("policy");
+  const [feedbackAnswers, setFeedbackAnswers] = useState<any>(null);
+
+  // Create a ref to track whether we've already shown the thank you message
+  const feedbackThankYouShown = useRef(false);
+
   const handleSend = async (messageToSend?: string) => {
     const message = messageToSend || input;
     debug.log("ui", `handleSend triggered with message: ${message}`);
@@ -263,94 +272,217 @@ function App() {
 
         // Use createResponse for the Responses API with streaming enabled
         const responseResult: { text: string; id?: string } =
-          await createResponse(message, previousResponseId, (contentItem) => {
-            // CRITICAL: First log at the very top to confirm we received the chunk
-            console.log("UI chunk received:", contentItem);
+          await createResponse(
+            message,
+            previousResponseId,
+            (contentItem) => {
+              // CRITICAL: First log at the very top to confirm we received the chunk
+              console.log("UI chunk received:", contentItem);
 
-            // Basic validation
-            if (
-              !contentItem ||
-              contentItem.type !== "text" ||
-              !contentItem.text?.value
-            ) {
-              console.error("🔴 INVALID CHUNK:", contentItem);
-              return;
-            }
+              // Basic validation
+              if (
+                !contentItem ||
+                contentItem.type !== "text" ||
+                !contentItem.text?.value
+              ) {
+                console.error("🔴 INVALID CHUNK:", contentItem);
+                return;
+              }
 
-            const textValue = contentItem.text.value;
-            const index = contentItem.index || 0;
+              const textValue = contentItem.text.value;
+              const index = contentItem.index || 0;
 
-            console.warn(
-              `🟢 CHUNK TEXT [${index}]: "${textValue.substring(0, 20)}..." (${
-                textValue.length
-              } chars)`
-            );
+              console.warn(
+                `🟢 CHUNK TEXT [${index}]: "${textValue.substring(
+                  0,
+                  20
+                )}..." (${textValue.length} chars)`
+              );
 
-            // Update message state - simplified
-            setMessages((prevMessages) => {
-              // Clone all messages
-              const newMessages = [...prevMessages];
+              // Special handling for JSON in feedback mode
+              if (mode === "feedback" && textValue.includes("}")) {
+                try {
+                  // Look for complete JSON object
+                  console.log("⚙️ Looking for JSON in:", textValue);
 
-              // Find the last AI message
-              let lastAIIndex = -1;
-              for (let i = newMessages.length - 1; i >= 0; i--) {
-                if (newMessages[i].type === "ai") {
-                  lastAIIndex = i;
-                  break;
+                  // Try to find any JSON object in the text
+                  const match = textValue.match(/\{[\s\S]*\}/);
+                  if (match) {
+                    const jsonText = match[0];
+                    console.log("⚙️ Found JSON text:", jsonText);
+
+                    try {
+                      const json = JSON.parse(jsonText);
+                      console.log("⚙️ Parsed JSON:", json);
+
+                      // More thorough validation
+                      const hasAllRequiredFields =
+                        typeof json === "object" &&
+                        json !== null &&
+                        "q1" in json &&
+                        "q2" in json &&
+                        "q3" in json &&
+                        "q4" in json &&
+                        "q5" in json;
+
+                      // Check if values are non-empty
+                      const hasValidValues =
+                        hasAllRequiredFields &&
+                        json.q1 &&
+                        json.q2 &&
+                        json.q3 &&
+                        json.q4 &&
+                        json.q5;
+
+                      console.log("⚙️ JSON validation:", {
+                        hasAllRequiredFields,
+                        hasValidValues,
+                        feedbackThankYouAlreadyShown:
+                          feedbackThankYouShown.current,
+                      });
+
+                      // Check if we have all 5 answers with valid values and haven't shown the thank you yet
+                      if (hasValidValues && !feedbackThankYouShown.current) {
+                        console.log("⚙️ Feedback answers complete:", json);
+
+                        // Store the feedback answers and set shown flag immediately to prevent duplicates
+                        setFeedbackAnswers(json);
+                        feedbackThankYouShown.current = true;
+
+                        // Create a direct replace of all messages to ensure proper rendering
+                        setTimeout(() => {
+                          console.log(
+                            "⚙️ Adding feedback summary and return button"
+                          );
+
+                          // Get messages without the JSON result and add two new messages
+                          setMessages((prev) => {
+                            // Keep all messages except the JSON message
+                            const messagesWithoutJson = prev.filter(
+                              (msg, i) => i !== prev.length - 1
+                            );
+
+                            // Clear the previous response ID to avoid continuing the conversation
+                            setPreviousResponseId(undefined);
+
+                            return [
+                              ...messagesWithoutJson,
+                              {
+                                type: "ai",
+                                content: [
+                                  {
+                                    type: "text",
+                                    text: {
+                                      value: `✅ **Thank you for your feedback!**
+
+Your responses have been recorded:
+- **Rating:** ${json.q1}
+- **Liked:** ${json.q2}
+- **Frustrated:** ${json.q3}
+- **Feature Request:** ${json.q4}
+- **Recommendation:** ${json.q5}
+
+This will help us improve the Policy Assistant.`,
+                                    },
+                                  },
+                                ],
+                              },
+                              {
+                                type: "ai",
+                                content: [
+                                  {
+                                    type: "text",
+                                    text: {
+                                      value: "returnButton",
+                                    },
+                                  },
+                                ],
+                              },
+                            ];
+                          });
+                        }, 1000);
+                      }
+                    } catch (err) {
+                      // Not valid JSON yet
+                      console.log("JSON not yet complete", err);
+                    }
+                  }
+                } catch (err) {
+                  // Not valid JSON yet
+                  console.log("JSON not yet complete", err);
                 }
               }
 
-              // If no AI message found, something is wrong
-              if (lastAIIndex === -1) {
-                console.error("No AI message found to update");
-                return prevMessages;
-              }
+              // Update message state - simplified
+              setMessages((prevMessages) => {
+                // Clone all messages
+                const newMessages = [...prevMessages];
 
-              // Get current content array
-              const message = newMessages[lastAIIndex];
-              let content = [...((message.content as TextContentItem[]) || [])];
+                // Find the last AI message
+                let lastAIIndex = -1;
+                for (let i = newMessages.length - 1; i >= 0; i--) {
+                  if (newMessages[i].type === "ai") {
+                    lastAIIndex = i;
+                    break;
+                  }
+                }
 
-              // Initialize content if needed
-              if (content.length === 0) {
-                content = [{ type: "text", text: { value: "" } }];
-              }
+                // If no AI message found, something is wrong
+                if (lastAIIndex === -1) {
+                  console.error("No AI message found to update");
+                  return prevMessages;
+                }
 
-              // Make sure index exists in array
-              while (content.length <= index) {
-                content.push({ type: "text", text: { value: "" } });
-              }
+                // Get current content array
+                const message = newMessages[lastAIIndex];
+                let content = [
+                  ...((message.content as TextContentItem[]) || []),
+                ];
 
-              // Update the content at index
-              const currentText = content[index].text?.value || "";
-              content[index] = {
-                ...content[index],
-                text: { value: currentText + textValue },
-              };
+                // Initialize content if needed
+                if (content.length === 0) {
+                  content = [{ type: "text", text: { value: "" } }];
+                }
 
-              console.log(
-                `UI updated message: ${currentText.length} => ${
-                  currentText.length + textValue.length
-                }`
-              );
+                // Make sure index exists in array
+                while (content.length <= index) {
+                  content.push({ type: "text", text: { value: "" } });
+                }
 
-              // If this is an error message (starts with ⚠️), stop the loading state
-              if (textValue.startsWith("⚠️")) {
-                debug.warn(
-                  "ui",
-                  "Error message received, stopping loading state"
+                // Update the content at index
+                const currentText = content[index].text?.value || "";
+                content[index] = {
+                  ...content[index],
+                  text: { value: currentText + textValue },
+                };
+
+                console.log(
+                  `UI updated message: ${currentText.length} => ${
+                    currentText.length + textValue.length
+                  }`
                 );
-                setIsLoading(false);
-              }
 
-              // Create new message with updated content
-              newMessages[lastAIIndex] = {
-                ...message,
-                content,
-              };
+                // If this is an error message (starts with ⚠️), stop the loading state
+                if (textValue.startsWith("⚠️")) {
+                  debug.warn(
+                    "ui",
+                    "Error message received, stopping loading state"
+                  );
+                  setIsLoading(false);
+                }
 
-              return newMessages;
-            });
-          });
+                // Create new message with updated content
+                newMessages[lastAIIndex] = {
+                  ...message,
+                  content,
+                };
+
+                return newMessages;
+              });
+            },
+            // Always pass the appropriate prompt based on mode
+            mode === "feedback" ? feedbackPrompt : systemPrompt
+          );
 
         // Store the response ID for multi-turn conversation
         if (responseResult.id) {
@@ -563,8 +695,63 @@ function App() {
     // 4. Reset error state
     setError(null);
 
+    // Reset to policy mode if we were in feedback mode
+    if (mode === "feedback") {
+      setMode("policy");
+      setFeedbackAnswers(null);
+      feedbackThankYouShown.current = false; // Reset the ref
+    }
+
     console.log("[UI] Started new chat");
   };
+
+  // Function to start the feedback survey per original instructions
+  const startFeedback = () => {
+    // Reset state but don't use handleNewChat to avoid showing welcome message
+    setIsLoading(false);
+    setInput("");
+    setError(null);
+    setPreviousResponseId(undefined);
+    setFeedbackAnswers(null);
+
+    // Switch to feedback mode
+    setMode("feedback");
+
+    // Initialize with a thank you message instead of the standard welcome
+    setMessages([
+      {
+        type: "ai",
+        content: [
+          {
+            type: "text",
+            text: {
+              value:
+                "Thank you for taking this survey. Click the button below to begin.",
+            },
+          },
+        ],
+      },
+    ]);
+  };
+
+  // Update the useEffect hook for feedbackAnswers to avoid duplicating messages
+  useEffect(() => {
+    if (feedbackAnswers) {
+      console.log("📊 Feedback state updated:", feedbackAnswers);
+
+      if (!feedbackThankYouShown.current) {
+        console.log("📊 First time seeing feedback, should show thank you");
+        // In a real app, you might want to save the feedback to a server
+        // fetch("/api/saveFeedback", {
+        //   method: "POST",
+        //   headers: { "Content-Type": "application/json" },
+        //   body: JSON.stringify(feedbackAnswers)
+        // });
+      } else {
+        console.log("📊 Already showed thank you for feedback");
+      }
+    }
+  }, [feedbackAnswers]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
@@ -627,12 +814,22 @@ function App() {
           <div className="mt-12 md:mt-0 flex flex-col h-[calc(100vh-120px)] md:h-[calc(100vh-100px)]">
             <Card className="flex flex-col bg-white rounded-lg shadow-lg overflow-hidden h-full">
               {/* Chat Header */}
-              <div className="bg-mha-blue text-white p-4 flex-shrink-0">
+              <div
+                className={`${
+                  mode === "feedback" ? "bg-mha-pink" : "bg-mha-blue"
+                } text-white p-4 flex-shrink-0`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold">Policy Assistant</h2>
+                    <h2 className="text-xl font-semibold">
+                      {mode === "feedback"
+                        ? "Feedback Survey"
+                        : "Policy Assistant"}
+                    </h2>
                     <p className="text-sm opacity-80">
-                      Available 24/7 to assist you
+                      {mode === "feedback"
+                        ? "Please answer 5 quick questions"
+                        : "Available 24/7 to assist you"}
                     </p>
                   </div>
                   <Button
@@ -641,7 +838,7 @@ function App() {
                     onClick={handleNewChat}
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />
-                    New Chat
+                    {mode === "feedback" ? "Cancel Survey" : "New Chat"}
                   </Button>
                 </div>
               </div>
@@ -652,6 +849,13 @@ function App() {
                   <div className="space-y-4">
                     {messages.map((message, index) => {
                       let messageContentElement: React.ReactNode = null;
+
+                      // Check if this is the first message in feedback mode and add a special button
+                      const isFirstFeedbackMessage =
+                        mode === "feedback" &&
+                        index === 0 &&
+                        message.type === "ai" &&
+                        !isLoading;
 
                       if (message.type === "user") {
                         // User message content is always a string
@@ -722,48 +926,165 @@ function App() {
                         }
                         // Third case: We have content to display
                         else {
-                          // Combine all text items into a single string
-                          const combinedText = aiContent
-                            .map((item) => {
-                              // Make sure item is a TextContentItem before accessing text
-                              if (
-                                item.type === "text" &&
-                                item.text &&
-                                typeof item.text.value === "string"
-                              ) {
-                                return item.text.value;
-                              }
-                              return "";
-                            })
-                            .join("\n"); // Join with single newline
-
-                          // Debug: Log AI content on every render
-                          debug.log(
-                            "ui",
-                            `Rendering AI message ${index} with content length: ${combinedText.length}`
+                          // Debug log the AI content
+                          console.log(
+                            "🔍 AI CONTENT:",
+                            JSON.stringify(aiContent),
+                            "for message index:",
+                            index
                           );
 
-                          // Pre-process the combined text before passing to Markdown parser
-                          const processedText =
-                            processTextForMarkdown(combinedText);
-
-                          // Check if this is an error message from the API
-                          if (processedText.startsWith("⚠️")) {
-                            messageContentElement = (
-                              <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
-                                {processedText}
-                              </div>
+                          // Check for the special returnButton value
+                          if (
+                            aiContent.length === 1 &&
+                            aiContent[0].type === "text" &&
+                            typeof aiContent[0].text?.value === "string" &&
+                            aiContent[0].text?.value === "returnButton"
+                          ) {
+                            console.log(
+                              "😎 RETURN BUTTON DETECTED - EXACT MATCH"
                             );
-                          } else {
+
                             messageContentElement = (
-                              <div className="prose prose-sm max-w-none ai-message-content">
-                                {/* Pass PRE-PROCESSED text to ReactMarkdown */}
-                                <ReactMarkdown components={markdownComponents}>
-                                  {processedText}
-                                </ReactMarkdown>
+                              <div className="flex justify-center w-full">
+                                <Button
+                                  className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
+                                  onClick={() => {
+                                    console.log("😎 RETURN BUTTON CLICKED");
+                                    // Reset to policy mode
+                                    setMode("policy");
+                                    // Clear feedback answers
+                                    setFeedbackAnswers(null);
+                                    // Reset feedback thank you shown flag
+                                    feedbackThankYouShown.current = false;
+                                    // Clear messages and start a new chat
+                                    handleNewChat();
+                                  }}
+                                >
+                                  Return to Policy Assistant
+                                </Button>
                               </div>
                             );
                           }
+                          // Alternative detection for messages containing returnButton
+                          else if (
+                            aiContent.length === 1 &&
+                            aiContent[0].type === "text" &&
+                            typeof aiContent[0].text?.value === "string" &&
+                            aiContent[0].text?.value.includes("returnButton")
+                          ) {
+                            console.log(
+                              "😎 RETURN BUTTON DETECTED in:",
+                              aiContent[0].text?.value
+                            );
+
+                            // Get any text before the returnButton marker
+                            const messagePart = aiContent[0].text?.value
+                              .split("returnButton")[0]
+                              .trim();
+
+                            messageContentElement = (
+                              <div>
+                                {messagePart && (
+                                  <div className="prose prose-sm max-w-none ai-message-content mb-4">
+                                    <ReactMarkdown
+                                      components={markdownComponents}
+                                    >
+                                      {processTextForMarkdown(messagePart)}
+                                    </ReactMarkdown>
+                                  </div>
+                                )}
+                                <div className="flex justify-center w-full">
+                                  <Button
+                                    className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
+                                    onClick={() => {
+                                      console.log("😎 RETURN BUTTON CLICKED");
+                                      // Reset to policy mode
+                                      setMode("policy");
+                                      // Clear feedback answers
+                                      setFeedbackAnswers(null);
+                                      // Reset feedback thank you shown flag
+                                      feedbackThankYouShown.current = false;
+                                      // Clear messages and start a new chat
+                                      handleNewChat();
+                                    }}
+                                  >
+                                    Return to Policy Assistant
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            // Combine all text items into a single string
+                            const combinedText = aiContent
+                              .map((item) => {
+                                // Make sure item is a TextContentItem before accessing text
+                                if (
+                                  item.type === "text" &&
+                                  item.text &&
+                                  typeof item.text.value === "string"
+                                ) {
+                                  return item.text.value;
+                                }
+                                return "";
+                              })
+                              .join("\n"); // Join with single newline
+
+                            // Debug: Log AI content on every render
+                            debug.log(
+                              "ui",
+                              `Rendering AI message ${index} with content length: ${combinedText.length}`
+                            );
+
+                            // Pre-process the combined text before passing to Markdown parser
+                            const processedText =
+                              processTextForMarkdown(combinedText);
+
+                            // Check if this is an error message from the API
+                            if (processedText.startsWith("⚠️")) {
+                              messageContentElement = (
+                                <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
+                                  {processedText}
+                                </div>
+                              );
+                            } else {
+                              messageContentElement = (
+                                <div className="prose prose-sm max-w-none ai-message-content">
+                                  {/* Pass PRE-PROCESSED text to ReactMarkdown */}
+                                  <ReactMarkdown
+                                    components={markdownComponents}
+                                  >
+                                    {processedText}
+                                  </ReactMarkdown>
+                                </div>
+                              );
+                            }
+                          }
+                        }
+
+                        // Add survey start button if this is the first message in feedback mode
+                        if (isFirstFeedbackMessage && messages.length === 1) {
+                          const content = aiContent
+                            .filter((item) => item.type === "text")
+                            .map((item) => item.text.value)
+                            .join("\n");
+
+                          messageContentElement = (
+                            <div>
+                              <p className="whitespace-pre-wrap">{content}</p>
+                              <div className="mt-4">
+                                <Button
+                                  className="bg-mha-pink hover:bg-mha-pink-dark text-white"
+                                  onClick={() => {
+                                    // Send message to start the survey
+                                    handleSend("start");
+                                  }}
+                                >
+                                  Let's start the survey!
+                                </Button>
+                              </div>
+                            </div>
+                          );
                         }
                       }
 
@@ -1017,7 +1338,7 @@ function App() {
                   <div className="mt-4">
                     <Button
                       className="w-full bg-mha-pink hover:bg-mha-pink-dark text-white"
-                      onClick={() => window.open("/feedback", "_blank")}
+                      onClick={startFeedback}
                     >
                       <MessageSquarePlus className="h-4 w-4 mr-2" />
                       Give Feedback
@@ -1287,7 +1608,7 @@ function App() {
                   <div className="mt-4">
                     <Button
                       className="w-full bg-mha-pink hover:bg-mha-pink-dark text-white"
-                      onClick={() => window.open("/feedback", "_blank")}
+                      onClick={startFeedback}
                     >
                       <MessageSquarePlus className="h-4 w-4 mr-2" />
                       Give Feedback
