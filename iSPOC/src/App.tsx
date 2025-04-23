@@ -21,10 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { createResponse } from "@/lib/api";
-import { EnvDebug } from "@/components/EnvDebug";
+import { createResponse } from "./lib/api";
+import { EnvDebug } from "./components/EnvDebug";
 import { MHALogo } from "./components/MHALogo";
-import { debug, initDebug, toggleDebug, isDebugMode } from "@/lib/debug";
+import { debug, initDebug, toggleDebug, isDebugMode } from "./lib/debug";
 
 // Initialize debug mode
 initDebug();

@@ -1,7 +1,7 @@
 // API service for OpenAI integration
 
 import systemPrompt from "../prompts/system_prompt.md?raw";
-import { debug, inspectStream } from "./debug";
+import { debug } from "./debug";
 
 // Access environment variables
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
