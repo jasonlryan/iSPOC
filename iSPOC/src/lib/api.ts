@@ -71,19 +71,22 @@ function callChunkCallback(
  * @param previousResponseId The previous response ID for conversation continuity
  * @param onChunk Optional callback for streaming partial responses
  * @param instructions Optional system instructions/prompt (defaults to policy assistant)
+ * @param signal Optional abort signal
  * @returns The AI response text and response ID for continuity
  */
 export async function createResponse(
   userQuery: string,
   previousResponseId?: string,
   onChunk?: (contentItem: { type: "text"; index: number; text: { value: string } }) => void,
-  instructions: string = systemPrompt
+  instructions: string = systemPrompt,
+  signal?: AbortSignal
 ): Promise<ResponseResult> {
   debug.group('api', 'Creating new response');
   debug.log('api', `Query: "${userQuery}"`);
   debug.log('api', `Previous Response ID: ${previousResponseId || "None (new conversation)"}`);
   debug.log('api', `Streaming mode: ${onChunk ? "✅ Enabled" : "❌ Disabled"}`);
   debug.log('api', `Using custom instructions: ${instructions !== systemPrompt ? "✅ Yes" : "❌ No (default)"}`);
+  debug.log('api', `Abort signal provided: ${signal ? "✅ Yes" : "❌ No"}`);
 
   // Cap query length to 2000 chars to prevent potential context length issues
   const cappedQuery = userQuery.length > 2000 
@@ -141,6 +144,7 @@ export async function createResponse(
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify(requestBody),
+      signal
     });
 
     debug.log('api', `Response received with status: ${response.status} ${response.statusText}`);

@@ -82,6 +82,8 @@ function App() {
 
   // Ref for the scroll area viewport
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  // Ref for the input element
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const commonQuestions = [
@@ -225,6 +227,9 @@ function App() {
   const [mode, setMode] = useState<"policy" | "feedback">("policy");
   const [feedbackAnswers, setFeedbackAnswers] = useState<any>(null);
 
+  // Add an AbortController ref for cancelling ongoing requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Create a ref to track whether we've already shown the thank you message
   const feedbackThankYouShown = useRef(false);
 
@@ -246,6 +251,13 @@ function App() {
 
       // Clear any previous errors
       setError(null);
+
+      // Create a new AbortController for this request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
 
       // Add user message to the chat
       const userMsg: Message = { type: "user", content: message };
@@ -480,8 +492,8 @@ This will help us improve the Policy Assistant.`,
                 return newMessages;
               });
             },
-            // Always pass the appropriate prompt based on mode
-            mode === "feedback" ? feedbackPrompt : systemPrompt
+            mode === "feedback" ? feedbackPrompt : systemPrompt,
+            signal
           );
 
         // Store the response ID for multi-turn conversation
@@ -497,6 +509,12 @@ This will help us improve the Policy Assistant.`,
 
         debug.log("ui", "createResponse promise resolved");
       } catch (error) {
+        // Check if this was aborted on purpose
+        if (error instanceof Error && error.name === "AbortError") {
+          debug.log("ui", "Request aborted intentionally");
+          return;
+        }
+
         debug.error("ui", "Error getting response from createResponse:", error);
         setError("Failed to get a response. Please try again.");
 
@@ -670,6 +688,13 @@ This will help us improve the Policy Assistant.`,
 
   // Handle creating a new chat
   const handleNewChat = () => {
+    // 1. Abort any ongoing API requests
+    if (abortControllerRef.current) {
+      debug.log("ui", "Aborting any ongoing requests");
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
     // 1. Stop any current streaming response
     setIsLoading(false);
 
@@ -741,17 +766,82 @@ This will help us improve the Policy Assistant.`,
 
       if (!feedbackThankYouShown.current) {
         console.log("📊 First time seeing feedback, should show thank you");
-        // In a real app, you might want to save the feedback to a server
-        // fetch("/api/saveFeedback", {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify(feedbackAnswers)
-        // });
+        // After receiving feedback, show a proper thank you message with return button
+        setTimeout(() => {
+          // Create a formatted thank you message with the feedback data
+          const thankYouMessage = {
+            type: "ai" as const,
+            content: [
+              {
+                type: "text" as const,
+                text: {
+                  value: `✅ **Thank you for your feedback!**
+
+Your responses have been recorded:
+- **Rating:** ${feedbackAnswers.q1}
+- **Liked:** ${feedbackAnswers.q2}
+- **Frustrated:** ${feedbackAnswers.q3}
+- **Feature Request:** ${feedbackAnswers.q4}
+- **Recommendation:** ${feedbackAnswers.q5}
+
+This will help us improve the Policy Assistant.`,
+                },
+              },
+            ],
+          };
+
+          // Create a separate message just for the return button
+          const returnButtonMessage = {
+            type: "ai" as const,
+            content: [
+              {
+                type: "text" as const,
+                text: {
+                  value: "returnButton",
+                },
+              },
+            ],
+          };
+
+          // Update messages, filter out any JSON response
+          setMessages((prev) => {
+            // Keep all messages except any potential raw JSON
+            const filteredMessages = prev.filter((msg) => {
+              // Skip messages that appear to contain JSON
+              if (
+                msg.type === "ai" &&
+                Array.isArray(msg.content) &&
+                msg.content.length === 1 &&
+                msg.content[0].type === "text" &&
+                typeof msg.content[0].text?.value === "string" &&
+                msg.content[0].text.value.trim().startsWith("{") &&
+                msg.content[0].text.value.trim().endsWith("}")
+              ) {
+                return false;
+              }
+              return true;
+            });
+
+            // Add thank you message and return button
+            return [...filteredMessages, thankYouMessage, returnButtonMessage];
+          });
+        }, 1000);
       } else {
         console.log("📊 Already showed thank you for feedback");
       }
     }
   }, [feedbackAnswers]);
+
+  // Add effect to focus input when message loading completes
+  useEffect(() => {
+    // Focus the input field when loading stops
+    if (!isLoading && inputRef.current) {
+      // Brief timeout to ensure UI is fully updated
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isLoading]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
@@ -807,12 +897,12 @@ This will help us improve the Policy Assistant.`,
       </div>
 
       {/* Main Content Wrapper */}
-      <div className="flex-1 p-6 h-full">
+      <div className="flex-1 px-6 pt-6 pb-0 flex flex-col h-screen overflow-hidden">
         {/* Two-column Layout */}
-        <div className="grid lg:grid-cols-[1fr_320px] gap-6 h-full">
+        <div className="grid lg:grid-cols-[1fr_320px] gap-6 h-full overflow-hidden">
           {/* Chat Area - Left Column */}
-          <div className="mt-12 md:mt-0 flex flex-col h-[calc(100vh-120px)] md:h-[calc(100vh-100px)]">
-            <Card className="flex flex-col bg-white rounded-lg shadow-lg overflow-hidden h-full">
+          <div className="mt-12 md:mt-0 flex flex-col flex-1 min-h-0 h-full">
+            <Card className="flex flex-col bg-white rounded-lg shadow-lg overflow-hidden h-full flex-grow">
               {/* Chat Header */}
               <div
                 className={`${
@@ -844,7 +934,7 @@ This will help us improve the Policy Assistant.`,
               </div>
 
               {/* Chat Messages */}
-              <div className="flex-1 overflow-hidden flex flex-col">
+              <div className="flex-grow overflow-hidden flex flex-col">
                 <ScrollArea className="h-full p-4 chat-scroll-area custom-scrollbar flex-grow">
                   <div className="space-y-4">
                     {messages.map((message, index) => {
@@ -924,141 +1014,186 @@ This will help us improve the Policy Assistant.`,
                             <p className="text-gray-400">...</p>
                           );
                         }
-                        // Third case: We have content to display
-                        else {
-                          // Debug log the AI content
+                        // Special case: Check for JSON feedback results
+                        else if (
+                          mode === "feedback" &&
+                          aiContent.length === 1 &&
+                          aiContent[0].type === "text" &&
+                          typeof aiContent[0].text?.value === "string" &&
+                          aiContent[0].text.value.trim().startsWith("{") &&
+                          aiContent[0].text.value.trim().endsWith("}")
+                        ) {
                           console.log(
-                            "🔍 AI CONTENT:",
-                            JSON.stringify(aiContent),
-                            "for message index:",
-                            index
+                            "🟢 DETECTED JSON FEEDBACK:",
+                            aiContent[0].text.value
                           );
 
-                          // Check for the special returnButton value
-                          if (
-                            aiContent.length === 1 &&
-                            aiContent[0].type === "text" &&
-                            typeof aiContent[0].text?.value === "string" &&
-                            aiContent[0].text?.value === "returnButton"
-                          ) {
-                            console.log(
-                              "😎 RETURN BUTTON DETECTED - EXACT MATCH"
+                          try {
+                            // Parse the JSON
+                            const json = JSON.parse(
+                              aiContent[0].text.value.trim()
                             );
 
-                            messageContentElement = (
-                              <div className="flex justify-center w-full">
-                                <Button
-                                  className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
-                                  onClick={() => {
-                                    console.log("😎 RETURN BUTTON CLICKED");
-                                    // Reset to policy mode
-                                    setMode("policy");
-                                    // Clear feedback answers
-                                    setFeedbackAnswers(null);
-                                    // Reset feedback thank you shown flag
-                                    feedbackThankYouShown.current = false;
-                                    // Clear messages and start a new chat
-                                    handleNewChat();
-                                  }}
-                                >
-                                  Return to Policy Assistant
-                                </Button>
-                              </div>
-                            );
-                          }
-                          // Alternative detection for messages containing returnButton
-                          else if (
-                            aiContent.length === 1 &&
-                            aiContent[0].type === "text" &&
-                            typeof aiContent[0].text?.value === "string" &&
-                            aiContent[0].text?.value.includes("returnButton")
-                          ) {
-                            console.log(
-                              "😎 RETURN BUTTON DETECTED in:",
-                              aiContent[0].text?.value
-                            );
+                            // Check if this is a complete feedback response
+                            if (
+                              json.q1 &&
+                              json.q2 &&
+                              json.q3 &&
+                              json.q4 &&
+                              json.q5
+                            ) {
+                              console.log(
+                                "✅ Valid feedback JSON detected, showing thank you message"
+                              );
 
-                            // Get any text before the returnButton marker
-                            const messagePart = aiContent[0].text?.value
-                              .split("returnButton")[0]
-                              .trim();
-
-                            messageContentElement = (
-                              <div>
-                                {messagePart && (
-                                  <div className="prose prose-sm max-w-none ai-message-content mb-4">
-                                    <ReactMarkdown
-                                      components={markdownComponents}
-                                    >
-                                      {processTextForMarkdown(messagePart)}
-                                    </ReactMarkdown>
-                                  </div>
-                                )}
-                                <div className="flex justify-center w-full">
-                                  <Button
-                                    className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
-                                    onClick={() => {
-                                      console.log("😎 RETURN BUTTON CLICKED");
-                                      // Reset to policy mode
-                                      setMode("policy");
-                                      // Clear feedback answers
-                                      setFeedbackAnswers(null);
-                                      // Reset feedback thank you shown flag
-                                      feedbackThankYouShown.current = false;
-                                      // Clear messages and start a new chat
-                                      handleNewChat();
-                                    }}
-                                  >
-                                    Return to Policy Assistant
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          } else {
-                            // Combine all text items into a single string
-                            const combinedText = aiContent
-                              .map((item) => {
-                                // Make sure item is a TextContentItem before accessing text
-                                if (
-                                  item.type === "text" &&
-                                  item.text &&
-                                  typeof item.text.value === "string"
-                                ) {
-                                  return item.text.value;
-                                }
-                                return "";
-                              })
-                              .join("\n"); // Join with single newline
-
-                            // Debug: Log AI content on every render
-                            debug.log(
-                              "ui",
-                              `Rendering AI message ${index} with content length: ${combinedText.length}`
-                            );
-
-                            // Pre-process the combined text before passing to Markdown parser
-                            const processedText =
-                              processTextForMarkdown(combinedText);
-
-                            // Check if this is an error message from the API
-                            if (processedText.startsWith("⚠️")) {
+                              // Show a nice thank you message instead of raw JSON
                               messageContentElement = (
-                                <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
-                                  {processedText}
+                                <div>
+                                  <div className="prose prose-sm max-w-none">
+                                    <h4 className="text-mha-blue font-semibold mb-2">
+                                      Thank you for your feedback!
+                                    </h4>
+                                    <p className="mb-2">
+                                      Your responses have been recorded:
+                                    </p>
+                                    <ul className="list-disc pl-5 mb-3">
+                                      <li>
+                                        <strong>Rating:</strong> {json.q1}
+                                      </li>
+                                      <li>
+                                        <strong>Liked:</strong> {json.q2}
+                                      </li>
+                                      <li>
+                                        <strong>Frustrated:</strong> {json.q3}
+                                      </li>
+                                      <li>
+                                        <strong>Feature Request:</strong>{" "}
+                                        {json.q4}
+                                      </li>
+                                      <li>
+                                        <strong>Recommendation:</strong>{" "}
+                                        {json.q5}
+                                      </li>
+                                    </ul>
+                                    <p>
+                                      This will help us improve the Policy
+                                      Assistant.
+                                    </p>
+                                  </div>
+
+                                  <div className="flex justify-center w-full mt-4">
+                                    <Button
+                                      className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-2 mb-2 text-base"
+                                      onClick={() => {
+                                        console.log("😎 RETURN BUTTON CLICKED");
+                                        // Reset to policy mode
+                                        setMode("policy");
+                                        // Clear feedback answers
+                                        setFeedbackAnswers(null);
+                                        // Reset feedback thank you shown flag
+                                        feedbackThankYouShown.current = false;
+                                        // Clear messages and start a new chat
+                                        handleNewChat();
+                                      }}
+                                    >
+                                      Return to Policy Assistant
+                                    </Button>
+                                  </div>
                                 </div>
                               );
-                            } else {
-                              messageContentElement = (
-                                <div className="prose prose-sm max-w-none ai-message-content">
-                                  {/* Pass PRE-PROCESSED text to ReactMarkdown */}
-                                  <ReactMarkdown
-                                    components={markdownComponents}
-                                  >
-                                    {processedText}
-                                  </ReactMarkdown>
+
+                              // Store the feedback answers if not already stored
+                              if (!feedbackAnswers) {
+                                setFeedbackAnswers(json);
+                                feedbackThankYouShown.current = true;
+                              }
+
+                              // Return early since we've handled this message
+                              return (
+                                <div key={index} className="flex justify-start">
+                                  <Card className="max-w-[80%] p-3 bg-white">
+                                    {messageContentElement}
+                                  </Card>
                                 </div>
                               );
                             }
+                          } catch (err) {
+                            console.error("Error parsing feedback JSON:", err);
+                          }
+                        }
+                        // Third case: Check for returnButton contents
+                        else if (
+                          aiContent.length === 1 &&
+                          aiContent[0].type === "text" &&
+                          typeof aiContent[0].text?.value === "string" &&
+                          aiContent[0].text?.value === "returnButton"
+                        ) {
+                          console.log(
+                            "😎 RETURN BUTTON DETECTED - EXACT MATCH"
+                          );
+
+                          messageContentElement = (
+                            <div className="flex justify-center w-full">
+                              <Button
+                                className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
+                                onClick={() => {
+                                  console.log("😎 RETURN BUTTON CLICKED");
+                                  // Reset to policy mode
+                                  setMode("policy");
+                                  // Clear feedback answers
+                                  setFeedbackAnswers(null);
+                                  // Reset feedback thank you shown flag
+                                  feedbackThankYouShown.current = false;
+                                  // Clear messages and start a new chat
+                                  handleNewChat();
+                                }}
+                              >
+                                Return to Policy Assistant
+                              </Button>
+                            </div>
+                          );
+                        } else {
+                          // Combine all text items into a single string
+                          const combinedText = aiContent
+                            .map((item) => {
+                              // Make sure item is a TextContentItem before accessing text
+                              if (
+                                item.type === "text" &&
+                                item.text &&
+                                typeof item.text.value === "string"
+                              ) {
+                                return item.text.value;
+                              }
+                              return "";
+                            })
+                            .join("\n"); // Join with single newline
+
+                          // Debug: Log AI content on every render
+                          debug.log(
+                            "ui",
+                            `Rendering AI message ${index} with content length: ${combinedText.length}`
+                          );
+
+                          // Pre-process the combined text before passing to Markdown parser
+                          const processedText =
+                            processTextForMarkdown(combinedText);
+
+                          // Check if this is an error message from the API
+                          if (processedText.startsWith("⚠️")) {
+                            messageContentElement = (
+                              <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
+                                {processedText}
+                              </div>
+                            );
+                          } else {
+                            messageContentElement = (
+                              <div className="prose prose-sm max-w-none ai-message-content">
+                                {/* Pass PRE-PROCESSED text to ReactMarkdown */}
+                                <ReactMarkdown components={markdownComponents}>
+                                  {processedText}
+                                </ReactMarkdown>
+                              </div>
+                            );
                           }
                         }
 
@@ -1089,21 +1224,8 @@ This will help us improve the Policy Assistant.`,
                       }
 
                       return (
-                        <div
-                          key={index}
-                          className={`flex ${
-                            message.type === "user"
-                              ? "justify-end"
-                              : "justify-start"
-                          }`}
-                        >
-                          <Card
-                            className={`max-w-[80%] p-3 ${
-                              message.type === "user"
-                                ? "bg-mha-pink text-white"
-                                : "bg-white"
-                            }`}
-                          >
+                        <div key={index} className="flex justify-start">
+                          <Card className="max-w-[80%] p-3 bg-white">
                             {messageContentElement}
                           </Card>
                         </div>
@@ -1114,9 +1236,10 @@ This will help us improve the Policy Assistant.`,
               </div>
 
               {/* Chat Input */}
-              <div className="p-4 border-t flex-shrink-0">
+              <div className="p-4 border-t flex-shrink-0 mt-auto">
                 <div className="flex gap-2">
                   <Input
+                    ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) =>
@@ -1139,7 +1262,7 @@ This will help us improve the Policy Assistant.`,
           </div>
 
           {/* Right Sidebar */}
-          <div className="hidden lg:block space-y-4">
+          <div className="hidden lg:block space-y-4 overflow-y-auto max-h-screen pb-6">
             <Card className="p-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-mha-blue">
