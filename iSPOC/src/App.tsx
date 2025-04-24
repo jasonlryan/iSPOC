@@ -18,10 +18,10 @@ import {
   MessageSquarePlus,
   Bug,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "./components/ui/button";
+import { Card } from "./components/ui/card";
+import { Input } from "./components/ui/input";
+import { ScrollArea } from "./components/ui/scroll-area";
 import { createResponse } from "./lib/api";
 import { EnvDebug } from "./components/EnvDebug";
 import { MHALogo } from "./components/MHALogo";
@@ -33,7 +33,7 @@ import {
   panelOrder,
   starterQuestionsPanel,
   starterQuestions,
-} from "@/lib/content-config";
+} from "./lib/content-config";
 
 // Initialize debug mode
 initDebug();
