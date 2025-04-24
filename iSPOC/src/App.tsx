@@ -33,7 +33,7 @@ import {
   panelOrder,
   starterQuestionsPanel,
   starterQuestions,
-} from "./lib/content-config";
+} from "@/lib/content-config";
 
 // Initialize debug mode
 initDebug();
