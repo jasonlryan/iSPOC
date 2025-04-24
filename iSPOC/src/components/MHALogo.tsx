@@ -1,11 +1,11 @@
 import React from "react";
 // Import statements for the logo images
-// Note: Using only the available logo files
+import mhaIspoc from "../assets/mha_ispoc.png";
 import logoWhite from "../assets/mha-logo-white.png";
 import logoPink from "../assets/mha-logo-pink.png";
 import logoBlue from "../assets/mha-logo-blue.png";
 
-type LogoVariant = "white" | "pink" | "blue" | "arch";
+type LogoVariant = "white" | "pink" | "blue" | "arch" | "ispoc";
 type LogoSize = "sm" | "md" | "lg";
 
 interface MHALogoProps {
@@ -16,23 +16,23 @@ interface MHALogoProps {
 }
 
 export const MHALogo: React.FC<MHALogoProps> = ({
-  variant = "white",
+  variant = "ispoc",
   size = "md",
   showTagline = false,
   className = "",
 }) => {
-  // Size mappings - increased by 150%
+  // Size mappings - adjusted to maintain aspect ratio
   const sizeClasses = {
-    sm: "h-16",
-    md: "h-24",
-    lg: "h-32",
+    sm: "max-w-[50px]",
+    md: "max-w-[75px]",
+    lg: "max-w-[90px]",
   };
 
   // Additional size increase for blue logo
   if (variant === "blue") {
-    sizeClasses.sm = "h-20";
-    sizeClasses.md = "h-28";
-    sizeClasses.lg = "h-36";
+    sizeClasses.sm = "max-w-[60px]";
+    sizeClasses.md = "max-w-[90px]";
+    sizeClasses.lg = "max-w-[108px]";
   }
 
   // Tagline size mappings
@@ -45,6 +45,8 @@ export const MHALogo: React.FC<MHALogoProps> = ({
   // Get the appropriate logo image based on variant
   const getLogoSrc = () => {
     switch (variant) {
+      case "ispoc":
+        return mhaIspoc;
       case "white":
         return logoWhite;
       case "pink":
@@ -55,22 +57,22 @@ export const MHALogo: React.FC<MHALogoProps> = ({
         // Fallback to white logo for arch variant
         return logoWhite;
       default:
-        return logoWhite;
+        return mhaIspoc;
     }
   };
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col items-center ${className}`}>
       <div className="flex">
         <img
           src={getLogoSrc()}
           alt={`MHA Logo ${variant}`}
-          className={`${sizeClasses[size]} w-auto`}
+          className={`${sizeClasses[size]} h-auto w-auto object-contain`}
         />
       </div>
 
-      {/* Tagline */}
-      {showTagline && (
+      {/* Tagline - only show for non-ispoc variants since ispoc already has text */}
+      {showTagline && variant !== "ispoc" && (
         <span
           className={`${taglineSizeClasses[size]} font-medium text-mha-blue mt-1`}
         >
