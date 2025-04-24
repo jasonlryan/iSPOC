@@ -30,10 +30,9 @@ import systemPrompt from "./prompts/system_prompt.md?raw";
 import feedbackPrompt from "./prompts/feedback_prompt.md?raw";
 import {
   contentPanels,
+  panelOrder,
   starterQuestionsPanel,
   starterQuestions,
-  // commonQuestions as configCommonQuestions,
-  panelOrder,
 } from "./lib/content-config";
 
 // Initialize debug mode
@@ -1247,7 +1246,7 @@ This will help us improve the Policy Assistant.`,
           {/* Right Sidebar */}
           <div className="hidden lg:block space-y-4 overflow-y-auto max-h-screen pb-6">
             {/* Generate panels in the order specified in the config */}
-            {panelOrder.map((panelId) => {
+            {panelOrder.map((panelId: string) => {
               if (panelId === "starterQuestions") {
                 // Special handling for starter questions panel
                 return (
@@ -1275,17 +1274,22 @@ This will help us improve the Policy Assistant.`,
                         <p className="italic text-gray-500 text-xs mb-2">
                           {starterQuestionsPanel.content[0]}
                         </p>
-                        {starterQuestions.map((question, index) => (
-                          <div
-                            key={index}
-                            className="p-2 border border-gray-200 rounded-md hover:bg-gray-50"
-                          >
-                            <p className="font-medium text-mha-blue">
-                              {question.title}
-                            </p>
-                            <p>{question.question}</p>
-                          </div>
-                        ))}
+                        {starterQuestions.map(
+                          (
+                            question: { title: string; question: string },
+                            index: number
+                          ) => (
+                            <div
+                              key={index}
+                              className="p-2 border border-gray-200 rounded-md hover:bg-gray-50"
+                            >
+                              <p className="font-medium text-mha-blue">
+                                {question.title}
+                              </p>
+                              <p>{question.question}</p>
+                            </div>
+                          )
+                        )}
                       </div>
                     )}
                   </Card>
@@ -1338,7 +1342,7 @@ This will help us improve the Policy Assistant.`,
                     </div>
                     {isPanelExpanded && (
                       <div className="space-y-2">
-                        {panel.content.map((paragraph, idx) => (
+                        {panel.content.map((paragraph: string, idx: number) => (
                           <p key={idx} className="leading-relaxed">
                             {paragraph}
                           </p>
@@ -1390,7 +1394,7 @@ This will help us improve the Policy Assistant.`,
           </Button>
           <div className="p-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
             {/* Mobile panels for About, Evaluation, and Disclaimer sections */}
-            {panelOrder.map((panelId) => {
+            {panelOrder.map((panelId: string) => {
               if (panelId === "starterQuestions") {
                 // Special handling for starter questions panel
                 return (
@@ -1420,17 +1424,22 @@ This will help us improve the Policy Assistant.`,
                         <p className="italic text-gray-500 text-xs mb-2">
                           {starterQuestionsPanel.content[0]}
                         </p>
-                        {starterQuestions.map((question, index) => (
-                          <div
-                            key={index}
-                            className="p-2 border border-gray-200 rounded-md hover:bg-gray-50"
-                          >
-                            <p className="font-medium text-mha-blue">
-                              {question.title}
-                            </p>
-                            <p>{question.question}</p>
-                          </div>
-                        ))}
+                        {starterQuestions.map(
+                          (
+                            question: { title: string; question: string },
+                            index: number
+                          ) => (
+                            <div
+                              key={index}
+                              className="p-2 border border-gray-200 rounded-md hover:bg-gray-50"
+                            >
+                              <p className="font-medium text-mha-blue">
+                                {question.title}
+                              </p>
+                              <p>{question.question}</p>
+                            </div>
+                          )
+                        )}
                       </div>
                     )}
                   </div>
@@ -1489,7 +1498,7 @@ This will help us improve the Policy Assistant.`,
                     </div>
                     {isPanelExpanded && (
                       <div className="space-y-2">
-                        {panel.content.map((paragraph, idx) => (
+                        {panel.content.map((paragraph: string, idx: number) => (
                           <p key={idx} className="leading-relaxed">
                             {paragraph}
                           </p>
