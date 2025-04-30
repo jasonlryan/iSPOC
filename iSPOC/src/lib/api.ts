@@ -72,6 +72,7 @@ function callChunkCallback(
  * @param onChunk Optional callback for streaming partial responses
  * @param instructions Optional system instructions/prompt (defaults to policy assistant)
  * @param signal Optional abort signal
+ * @param customVectorStoreId Optional override for the vector store ID
  * @returns The AI response text and response ID for continuity
  */
 export async function createResponse(
@@ -79,7 +80,8 @@ export async function createResponse(
   previousResponseId?: string,
   onChunk?: (contentItem: { type: "text"; index: number; text: { value: string } }) => void,
   instructions: string = systemPrompt,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  customVectorStoreId?: string
 ): Promise<ResponseResult> {
   debug.group('api', 'Creating new response');
   debug.log('api', `Query: "${userQuery}"`);
@@ -87,6 +89,7 @@ export async function createResponse(
   debug.log('api', `Streaming mode: ${onChunk ? "✅ Enabled" : "❌ Disabled"}`);
   debug.log('api', `Using custom instructions: ${instructions !== systemPrompt ? "✅ Yes" : "❌ No (default)"}`);
   debug.log('api', `Abort signal provided: ${signal ? "✅ Yes" : "❌ No"}`);
+  debug.log('api', `Custom Vector Store ID: ${customVectorStoreId || "None (using default)"}`);
 
   // Cap query length to 2000 chars to prevent potential context length issues
   const cappedQuery = userQuery.length > 2000 
@@ -98,8 +101,11 @@ export async function createResponse(
   }
 
   try {
+    // Use the custom vector store ID if provided, otherwise fall back to the default
+    const activeVectorStoreId = customVectorStoreId || VECTOR_STORE_ID;
+    
     // Verify vector store ID is available
-    if (!VECTOR_STORE_ID) {
+    if (!activeVectorStoreId) {
       throw new Error("Vector Store ID is not configured. Please check your environment variables.");
     }
 
@@ -111,11 +117,11 @@ export async function createResponse(
     };
 
     // Only add tools if we have a valid vector store ID
-    if (VECTOR_STORE_ID) {
+    if (activeVectorStoreId) {
       requestBody.tools = [
         {
           type: "file_search",
-          vector_store_ids: [VECTOR_STORE_ID]
+          vector_store_ids: [activeVectorStoreId]
         }
       ];
     }
@@ -132,7 +138,7 @@ export async function createResponse(
     // Debug: Log the full request body
     debug.log('api', "Request body prepared", { 
       model: requestBody.model,
-      tools: requestBody.tools ? "✅ Included" : "❌ Not included",
+      tools: requestBody.tools ? `✅ Included (vector store: ${activeVectorStoreId})` : "❌ Not included",
       stream: requestBody.stream ? "✅ Enabled" : "❌ Disabled" 
     });
 

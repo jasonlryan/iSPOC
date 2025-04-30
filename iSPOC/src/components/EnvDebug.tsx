@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
-export function EnvDebug() {
+interface EnvDebugProps {
+  vectorStoreId?: string;
+}
+
+export function EnvDebug({ vectorStoreId }: EnvDebugProps = {}) {
   const [showDebug, setShowDebug] = useState(false);
 
   const envVars = {
@@ -15,6 +19,13 @@ export function EnvDebug() {
         )}`
       : "Not set",
     VITE_ASST_API_KEY: import.meta.env.VITE_ASST_API_KEY || "Not set",
+    VITE_OPENAI_VECTOR_STORE_ID:
+      import.meta.env.VITE_OPENAI_VECTOR_STORE_ID || "Not set",
+    CURRENT_VECTOR_STORE: vectorStoreId || "Not provided",
+    STORE_TYPE:
+      vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+        ? "Guides"
+        : "Policies",
   };
 
   return (

@@ -17,6 +17,8 @@ import {
   // ClipboardList,
   MessageSquarePlus,
   Bug,
+  FileText,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
@@ -27,6 +29,7 @@ import { EnvDebug } from "./components/EnvDebug";
 import { MHALogo } from "./components/MHALogo";
 import { debug, initDebug, toggleDebug, isDebugMode } from "./lib/debug";
 import systemPrompt from "./prompts/system_prompt.md?raw";
+import guideSystemPrompt from "./prompts/guide_system_prompt.md?raw";
 import feedbackPrompt from "./prompts/feedback_prompt.md?raw";
 import {
   contentPanels,
@@ -34,6 +37,7 @@ import {
   starterQuestionsPanel,
   starterQuestions,
 } from "./lib/content-config";
+import { logFeedbackToCSV } from "./lib/feedback-logger";
 
 // Initialize debug mode
 initDebug();
@@ -55,21 +59,6 @@ interface Message {
 }
 
 function App() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      type: "ai",
-      content: [
-        {
-          type: "text",
-          text: {
-            value:
-              "Hello! I'm your iSPoC Policy Assistant. How can I help you today?",
-          },
-        },
-      ],
-    },
-  ]);
-  const [input, setInput] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpPanelOpen, setHelpPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -156,6 +145,36 @@ function App() {
   // Create a ref to track whether we've already shown the thank you message
   const feedbackThankYouShown = useRef(false);
 
+  // Add state for current vector store ID
+  const [vectorStoreId, setVectorStoreId] = useState<string>(
+    import.meta.env.VITE_OPENAI_VECTOR_STORE_ID || "vs_S49gTBhlXwOSZFht2AqbPIsf"
+  );
+
+  // Function to get the welcome message based on the knowledge base type
+  const getWelcomeMessage = (isGuide: boolean) => {
+    return isGuide
+      ? "Hello! I'm your iSPoC 'How To' Assistant. How can I help you today?"
+      : "Hello! I'm your iSPoC Policy Assistant. How can I help you today?";
+  };
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      type: "ai",
+      content: [
+        {
+          type: "text",
+          text: {
+            value: getWelcomeMessage(
+              vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+            ),
+          },
+        },
+      ],
+    },
+  ]);
+
+  const [input, setInput] = useState("");
+
   // Function to pre-process text - ABSOLUTE MINIMUM - Only Citations & Object
   const processTextForMarkdown = (text: string) => {
     debug.group("ui", "Processing markdown");
@@ -174,7 +193,24 @@ function App() {
       debug.log("ui", `Raw text content: "${processed}"`);
     }
 
-    // 1. Remove citation patterns
+    // 1. Extract guide sources to format properly
+    let guideSources: string[] = [];
+    const guideSourcePattern = /【\d+:([^】]+)】/g;
+    let match;
+
+    // Find all guide source references
+    while ((match = guideSourcePattern.exec(processed)) !== null) {
+      // Extract source name without the .json extension
+      const sourceName = match[1].replace(".json", "");
+      if (!guideSources.includes(sourceName)) {
+        guideSources.push(sourceName);
+      }
+    }
+
+    // 2. Remove raw citation patterns from the text
+    processed = processed.replace(/【\d+:[^】]+】/g, "");
+
+    // 3. Old citation pattern clean-up
     const beforeCitationRemoval = processed.length;
     processed = processed.replace(
       /\s*(\[\d+:\d+\*source\]|\u3010\d+:\d+[\u2020†]source\u3011)\s*/g,
@@ -189,7 +225,7 @@ function App() {
       );
     }
 
-    // 2. Remove ,[object Object],
+    // 4. Remove ,[object Object],
     const beforeObjectRemoval = processed.length;
     processed = processed.replace(/,\[object Object\],/g, " ");
     if (beforeObjectRemoval !== processed.length) {
@@ -201,10 +237,19 @@ function App() {
       );
     }
 
-    // 3. Trim whitespace from start/end only
+    // 5. Add formatted sources section if sources were found
+    if (guideSources.length > 0) {
+      processed = processed.trim();
+      processed += "\n\n**Sources:**\n";
+      guideSources.forEach((source, index) => {
+        processed += `${index + 1}. ${source}\n`;
+      });
+    }
+
+    // 6. Trim whitespace from start/end only
     processed = processed.trim();
 
-    // 4. Debug output text
+    // 7. Debug output text
     if (processed.length > 0 && processed.length < 100) {
       debug.log("ui", `Processed markdown text: "${processed}"`);
     } else {
@@ -317,7 +362,8 @@ function App() {
                         "q2" in json &&
                         "q3" in json &&
                         "q4" in json &&
-                        "q5" in json;
+                        "q5" in json &&
+                        "q6" in json;
 
                       // Check if values are non-empty
                       const hasValidValues =
@@ -375,6 +421,7 @@ Your responses have been recorded:
 - **Frustrated:** ${json.q3}
 - **Feature Request:** ${json.q4}
 - **Recommendation:** ${json.q5}
+- **Additional Comments:** ${json.q6}
 
 This will help us improve the Policy Assistant.`,
                                     },
@@ -474,8 +521,13 @@ This will help us improve the Policy Assistant.`,
                 return newMessages;
               });
             },
-            mode === "feedback" ? feedbackPrompt : systemPrompt,
-            signal
+            mode === "feedback"
+              ? feedbackPrompt
+              : vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+              ? guideSystemPrompt
+              : systemPrompt,
+            signal,
+            vectorStoreId
           );
 
         // Store the response ID for multi-turn conversation
@@ -683,8 +735,9 @@ This will help us improve the Policy Assistant.`,
           {
             type: "text",
             text: {
-              value:
-                "Hello! I'm your iSPoC Policy Assistant. How can I help you today?",
+              value: getWelcomeMessage(
+                vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+              ),
             },
           },
         ],
@@ -736,13 +789,20 @@ This will help us improve the Policy Assistant.`,
     ]);
   };
 
-  // Update the useEffect hook for feedbackAnswers to avoid duplicating messages
+  // Update the useEffect hook for feedbackAnswers to use the simplified logger
   useEffect(() => {
     if (feedbackAnswers) {
       console.log("📊 Feedback state updated:", feedbackAnswers);
 
       if (!feedbackThankYouShown.current) {
         console.log("📊 First time seeing feedback, should show thank you");
+
+        // Log the feedback using the simplified logger
+        const logResult = logFeedbackToCSV(feedbackAnswers);
+        console.log(
+          `📊 Feedback logging ${logResult ? "successful" : "failed"}`
+        );
+
         // After receiving feedback, show a proper thank you message with return button
         setTimeout(() => {
           // Create a formatted thank you message with the feedback data
@@ -760,6 +820,7 @@ Your responses have been recorded:
 - **Frustrated:** ${feedbackAnswers.q3}
 - **Feature Request:** ${feedbackAnswers.q4}
 - **Recommendation:** ${feedbackAnswers.q5}
+- **Additional Comments:** ${feedbackAnswers.q6}
 
 This will help us improve the Policy Assistant.`,
                 },
@@ -819,6 +880,32 @@ This will help us improve the Policy Assistant.`,
       }, 100);
     }
   }, [isLoading]);
+
+  // Add this code to handle vector store changes and update the welcome message
+  const handleVectorStoreChange = (storeId: string) => {
+    setVectorStoreId(storeId);
+    console.log(`Vector store changed to: ${storeId}`);
+
+    // Update welcome message when switching knowledge base
+    const isGuide = storeId === "vs_68121a5f918c81919040f9caa54ff5ce";
+
+    // Only update the welcome message if no conversation has occurred yet
+    if (messages.length === 1 && messages[0].type === "ai") {
+      setMessages([
+        {
+          type: "ai",
+          content: [
+            {
+              type: "text",
+              text: {
+                value: getWelcomeMessage(isGuide),
+              },
+            },
+          ],
+        },
+      ]);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
@@ -883,7 +970,11 @@ This will help us improve the Policy Assistant.`,
               {/* Chat Header */}
               <div
                 className={`${
-                  mode === "feedback" ? "bg-mha-pink" : "bg-mha-blue"
+                  mode === "feedback"
+                    ? "bg-mha-pink"
+                    : vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+                    ? "bg-[#6bbbae]" // Use teal color for guides
+                    : "bg-mha-blue" // Keep blue for policies
                 } text-white p-4 flex-shrink-0`}
               >
                 <div className="flex items-center justify-between">
@@ -893,8 +984,11 @@ This will help us improve the Policy Assistant.`,
                         "Feedback Survey"
                       ) : (
                         <>
-                          iSPoC <span className="font-normal">|</span> Policy
-                          Assistant
+                          iSPoC <span className="font-normal">|</span>{" "}
+                          {vectorStoreId ===
+                          "vs_68121a5f918c81919040f9caa54ff5ce"
+                            ? "How To Assistant"
+                            : "Policy Assistant"}
                         </>
                       )}
                     </h2>
@@ -906,10 +1000,23 @@ This will help us improve the Policy Assistant.`,
                   </div>
                   <Button
                     variant="secondary"
-                    className="bg-white text-mha-blue hover:bg-gray-100 font-medium px-4 py-2"
+                    className={
+                      mode === "feedback"
+                        ? "bg-white text-mha-pink hover:bg-gray-100 font-medium px-4 py-2"
+                        : `bg-white ${
+                            vectorStoreId ===
+                            "vs_68121a5f918c81919040f9caa54ff5ce"
+                              ? "text-[#6bbbae]" // Teal text for guides
+                              : "text-mha-blue" // Blue text for policies
+                          } hover:bg-gray-100 font-medium px-4 py-2`
+                    }
                     onClick={handleNewChat}
                   >
-                    <MessageSquare className="h-4 w-4 mr-2" />
+                    <MessageSquare
+                      className={`h-4 w-4 mr-2 ${
+                        mode === "feedback" ? "text-mha-pink" : ""
+                      }`}
+                    />
                     {mode === "feedback" ? "Cancel Survey" : "New Chat"}
                   </Button>
                 </div>
@@ -1056,6 +1163,10 @@ This will help us improve the Policy Assistant.`,
                                         <strong>Recommendation:</strong>{" "}
                                         {json.q5}
                                       </li>
+                                      <li>
+                                        <strong>Additional Comments:</strong>{" "}
+                                        {json.q6}
+                                      </li>
                                     </ul>
                                     <p>
                                       This will help us improve the Policy
@@ -1092,8 +1203,26 @@ This will help us improve the Policy Assistant.`,
 
                               // Return early since we've handled this message
                               return (
-                                <div key={index} className="flex justify-start">
-                                  <Card className="max-w-[80%] p-3 bg-white">
+                                <div
+                                  key={index}
+                                  className={
+                                    String(message.type) === "user"
+                                      ? "flex justify-end"
+                                      : "flex justify-start"
+                                  }
+                                >
+                                  <Card
+                                    className={`max-w-[80%] p-3 ${
+                                      String(message.type) === "user"
+                                        ? mode === "feedback"
+                                          ? "bg-mha-pink text-white" // Pink for feedback
+                                          : vectorStoreId ===
+                                            "vs_68121a5f918c81919040f9caa54ff5ce"
+                                          ? "bg-[#6bbbae] text-white" // Teal for Guides
+                                          : "bg-mha-blue text-white" // Blue for Policies
+                                        : "bg-white"
+                                    }`}
+                                  >
                                     {messageContentElement}
                                   </Card>
                                 </div>
@@ -1206,8 +1335,26 @@ This will help us improve the Policy Assistant.`,
                       }
 
                       return (
-                        <div key={index} className="flex justify-start">
-                          <Card className="max-w-[80%] p-3 bg-white">
+                        <div
+                          key={index}
+                          className={
+                            String(message.type) === "user"
+                              ? "flex justify-end"
+                              : "flex justify-start"
+                          }
+                        >
+                          <Card
+                            className={`max-w-[80%] p-3 ${
+                              String(message.type) === "user"
+                                ? mode === "feedback"
+                                  ? "bg-mha-pink text-white" // Pink for feedback
+                                  : vectorStoreId ===
+                                    "vs_68121a5f918c81919040f9caa54ff5ce"
+                                  ? "bg-[#6bbbae] text-white" // Teal for Guides
+                                  : "bg-mha-blue text-white" // Blue for Policies
+                                : "bg-white"
+                            }`}
+                          >
                             {messageContentElement}
                           </Card>
                         </div>
@@ -1238,6 +1385,47 @@ This will help us improve the Policy Assistant.`,
                   >
                     <Send className="h-5 w-5" />
                   </Button>
+                </div>
+
+                {/* Knowledge Base Selector */}
+                <div className="flex items-center mt-3 text-sm">
+                  <span className="mr-2 text-gray-600">Knowledge Base:</span>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={mode === "feedback"}
+                      className={`px-3 py-1 flex items-center ${
+                        vectorStoreId === "vs_S49gTBhlXwOSZFht2AqbPIsf"
+                          ? "bg-mha-blue text-white border-mha-blue"
+                          : "bg-white text-gray-700"
+                      }`}
+                      onClick={() =>
+                        handleVectorStoreChange("vs_S49gTBhlXwOSZFht2AqbPIsf")
+                      }
+                    >
+                      <FileText className="mr-1 h-3 w-3" />
+                      Policies
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={mode === "feedback"}
+                      className={`px-3 py-1 flex items-center ${
+                        vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+                          ? "bg-[#6bbbae] text-white border-[#6bbbae]"
+                          : "bg-white text-gray-700"
+                      }`}
+                      onClick={() =>
+                        handleVectorStoreChange(
+                          "vs_68121a5f918c81919040f9caa54ff5ce"
+                        )
+                      }
+                    >
+                      <BookOpen className="mr-1 h-3 w-3" />
+                      Guides
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -1526,7 +1714,7 @@ This will help us improve the Policy Assistant.`,
       </div>
 
       {/* Add the debug component */}
-      <EnvDebug />
+      {isDebugMode() && <EnvDebug vectorStoreId={vectorStoreId} />}
 
       {/* Add error message display */}
       {error && (
