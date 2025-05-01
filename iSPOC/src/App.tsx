@@ -186,237 +186,58 @@ function App() {
       debug.log("ui", `Raw text content: "${processed}"`);
     }
 
-    // Handle multiple Sources sections - keep only the last one
-    const sourceSections = processed.match(/\n[^\n]*Sources:?[^\n]*\n/g);
-    if (sourceSections && sourceSections.length > 1) {
-      console.warn(
-        `⚠️ Multiple Sources sections detected: ${sourceSections.length}`
-      );
+    // COMPLETE REWRITE OF CITATION HANDLING:
 
-      // Find all positions of "Sources:" sections
-      let positions = [];
-      let regex = /\n[^\n]*Sources:?[^\n]*\n/g;
-      let match;
-
-      while ((match = regex.exec(processed)) !== null) {
-        positions.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          text: match[0],
-        });
-      }
-
-      // Keep only the last Sources section, remove all others
-      for (let i = 0; i < positions.length - 1; i++) {
-        const pos = positions[i];
-        console.warn(
-          `🗑️ Removing duplicate Sources section: "${pos.text.trim()}"`
-        );
-
-        // Remove this section and adjust text
-        const beforeSection = processed.substring(0, pos.start);
-        const afterSection = processed.substring(pos.end);
-        processed = beforeSection + "\n" + afterSection;
-
-        // Adjust remaining positions after removal
-        for (let j = i + 1; j < positions.length; j++) {
-          positions[j].start -= pos.end - pos.start - 1;
-          positions[j].end -= pos.end - pos.start - 1;
-        }
-      }
-
-      console.warn(`✅ Kept only the last Sources section`);
-    }
-
-    // 1. Extract document sources to format properly
+    // 1. First extract all document sources
     let documentSources: { name: string; type: string }[] = [];
 
-    // Try to match the new format first: 【n:Name:Type】
-    const newFormatPattern = /【(\d+):([^:]+):([^】]+)】/g;
+    // Extract from citation markers like 【n:Name】or 【n:Name:Type】
+    const citationPattern = /【\d+:([^】:]+)(?::([^】]+))?】/g;
     let match;
-    let usedNewFormat = false;
 
-    // Find all document source references with new format
-    while ((match = newFormatPattern.exec(processed)) !== null) {
-      usedNewFormat = true;
-      // Extract source name and remove .json extension if present
-      const sourceName = match[2].replace(/\.json$/i, "");
-      const sourceType = match[3];
-      if (!documentSources.some((source) => source.name === sourceName)) {
+    while ((match = citationPattern.exec(processed)) !== null) {
+      const sourceName = match[1].replace(/\.json$/i, "");
+
+      // The type is either explicitly provided or we infer it
+      let sourceType = match[2] || "Policy"; // Default to Policy for simplicity
+
+      // If name doesn't already exist in sources, add it
+      if (!documentSources.some((src) => src.name === sourceName)) {
         documentSources.push({ name: sourceName, type: sourceType });
       }
     }
 
-    // If no matches with new format, try the old format: 【n:Name】
-    if (!usedNewFormat) {
-      const oldFormatPattern = /【\d+:([^】]+)】/g;
-      while ((match = oldFormatPattern.exec(processed)) !== null) {
-        // Extract source name and remove .json extension if present
-        const sourceName = match[1].replace(/\.json$/i, "");
+    // 2. Clean up all citation markers
+    processed = processed.replace(/【[^】]*】/g, "");
 
-        // Infer document type from name patterns if not explicitly provided
-        let inferredType = "Guide";
+    // 3. Delete ALL "Sources" sections (we'll add a clean one at the end)
+    const sourcesPatterns = [
+      /\n+\s*\*\*Sources:?\*\*[\s\S]*?(?=\n\n|\n*$)/gi, // Markdown Sources sections
+      /\n+\s*Sources:?[\s\S]*?(?=\n\n|\n*$)/gi, // Plain Sources sections
+    ];
 
-        // Policy documents typically start with identifiers like CP, HR, HS, FP, etc.
-        const policyPrefixes = [
-          "CP",
-          "HR",
-          "HS",
-          "FP",
-          "FR",
-          "DP",
-          "G",
-          "HP",
-          "IT",
-          "IG",
-          "VP",
-          "OPCS",
-          "MED",
-          "EST",
-          "MHAC",
-        ];
-        const nameWithoutExtension = sourceName.replace(/\s*\(\d+\)$/, ""); // Remove (1), (2) etc.
-
-        if (
-          policyPrefixes.some(
-            (prefix) =>
-              nameWithoutExtension.startsWith(prefix) &&
-              nameWithoutExtension.includes(" ")
-          )
-        ) {
-          inferredType = "Policy";
-        }
-
-        // Check for specific keywords in the name
-        if (nameWithoutExtension.toLowerCase().includes("policy")) {
-          inferredType = "Policy";
-        }
-
-        if (!documentSources.some((source) => source.name === sourceName)) {
-          documentSources.push({ name: sourceName, type: inferredType });
-        }
-      }
+    for (const pattern of sourcesPatterns) {
+      processed = processed.replace(pattern, "");
     }
 
-    // Also look for plaintext sources in a "Sources" section
-    const sourcesSection = processed.match(
-      /Sources:?\s*((?:\d+\.\s*[^\n]+\n*)+)/i
-    );
-    if (sourcesSection && sourcesSection[1]) {
-      const sourceLines = sourcesSection[1].match(/\d+\.\s*([^\n]+)/g);
-      if (sourceLines) {
-        sourceLines.forEach((line) => {
-          // Extract name from the line, removing any numbers and dots at the beginning
-          const sourceName = line
-            .replace(/^\d+\.\s*/, "")
-            .trim()
-            .replace(/\.json$/i, "");
+    // 4. Clean up any other formatting issues
+    processed = processed
+      .replace(/\[object Object\]/g, "")
+      .replace(/\s+,/g, ",")
+      .replace(/,\s+/g, ", ")
+      .replace(/\s+\./g, ".")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/  +/g, " ")
+      .trim();
 
-          // Infer document type
-          let inferredType = "Guide";
-          const policyPrefixes = [
-            "CP",
-            "HR",
-            "HS",
-            "FP",
-            "FR",
-            "DP",
-            "G",
-            "HP",
-            "IT",
-            "IG",
-            "VP",
-            "OPCS",
-            "MED",
-            "EST",
-            "MHAC",
-          ];
-          const nameWithoutExtension = sourceName.replace(/\s*\(\d+\)$/, "");
-
-          if (
-            policyPrefixes.some(
-              (prefix) =>
-                nameWithoutExtension.startsWith(prefix) &&
-                nameWithoutExtension.includes(" ")
-            )
-          ) {
-            inferredType = "Policy";
-          }
-
-          if (nameWithoutExtension.toLowerCase().includes("policy")) {
-            inferredType = "Policy";
-          }
-
-          // Add to sources if not already present
-          if (!documentSources.some((source) => source.name === sourceName)) {
-            documentSources.push({ name: sourceName, type: inferredType });
-          }
-        });
-      }
-    }
-
-    // 2. Remove raw citation patterns from both formats
-    if (usedNewFormat) {
-      processed = processed.replace(/【\d+:[^:]+:[^】]+】/g, "");
-    } else {
-      processed = processed.replace(/【\d+:[^】]+】/g, "");
-    }
-
-    // 3. Old citation pattern clean-up
-    const beforeCitationRemoval = processed.length;
-    processed = processed.replace(
-      /\s*(\[\d+:\d+\*source\]|\u3010\d+:\d+[\u2020†]source\u3011)\s*/g,
-      " "
-    );
-    if (beforeCitationRemoval !== processed.length) {
-      debug.log(
-        "ui",
-        `Removed ${
-          beforeCitationRemoval - processed.length
-        } characters from citations`
-      );
-    }
-
-    // 4. Remove ,[object Object],
-    const beforeObjectRemoval = processed.length;
-    processed = processed.replace(/,\[object Object\],/g, " ");
-    if (beforeObjectRemoval !== processed.length) {
-      debug.log(
-        "ui",
-        `Removed ${
-          beforeObjectRemoval - processed.length
-        } characters from object notation`
-      );
-    }
-
-    // 5. Look for a Sources section that may already have been added by the LLM
-    const sourcesIndex = processed.lastIndexOf("\n**Sources:**");
-    if (sourcesIndex > 0) {
-      // Cut off any existing sources section - we'll add our own
-      processed = processed.substring(0, sourcesIndex).trim();
-    }
-
-    // 6. Add formatted sources section if sources were found
+    // 5. Add a single, clean Sources section
     if (documentSources.length > 0) {
-      processed = processed.trim();
       processed += "\n\n**Sources:**\n";
       documentSources.forEach((source, index) => {
-        // Add icon based on document type
-        const icon = source.type === "Guide" ? "📘" : "📜";
-        // Make sure name doesn't have .json extension
-        const cleanName = source.name.replace(/\.json$/i, "");
-        processed += `${index + 1}. ${icon} ${cleanName}\n`;
+        // Always use the scroll icon for policies
+        const icon = "📜";
+        processed += `${index + 1}. ${icon} ${source.name}\n`;
       });
-    }
-
-    // 7. Trim whitespace from start/end only
-    processed = processed.trim();
-
-    // 8. Debug output text
-    if (processed.length > 0 && processed.length < 100) {
-      debug.log("ui", `Processed markdown text: "${processed}"`);
-    } else {
-      debug.log("ui", `Processed markdown text length: ${processed.length}`);
     }
 
     debug.groupEnd();
