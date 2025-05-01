@@ -1778,7 +1778,7 @@ This will help us improve the Policy Assistant.`,
       </div>
 
       {/* Add the debug component */}
-      {isDebugMode() && <EnvDebug />}
+      {/* {isDebugMode() && <EnvDebug />} */}
 
       {/* Add error message display */}
       {error && (
