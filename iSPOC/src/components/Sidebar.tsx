@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 // ... existing imports
 
 // Add this import for the toggle component
