@@ -38,6 +38,7 @@ import {
   starterQuestions,
 } from "./lib/content-config";
 import { logFeedbackToCSV } from "./lib/feedback-logger";
+import useWindowSize from "./lib/useWindowSize";
 
 // Initialize debug mode
 initDebug();
@@ -59,6 +60,7 @@ interface Message {
 }
 
 function App() {
+  const windowSize = useWindowSize();
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpPanelOpen, setHelpPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -1036,7 +1038,10 @@ This will help us improve the Policy Assistant.`,
   }, [isLoading]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
+    <div
+      className="min-h-screen bg-gray-50 flex flex-col lg:flex-row"
+      style={{ height: "100vh" }}
+    >
       {/* Mobile Menu Toggle */}
       <Button
         variant="ghost"
@@ -1644,7 +1649,15 @@ This will help us improve the Policy Assistant.`,
               }`}
             />
           </Button>
-          <div className="p-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+          <div
+            className="p-4 overflow-y-auto custom-scrollbar"
+            style={{
+              maxHeight: helpPanelOpen
+                ? `${windowSize.height * 0.8}px`
+                : "70vh",
+              minHeight: helpPanelOpen ? "300px" : "auto",
+            }}
+          >
             {/* Mobile panels for About, Evaluation, and Disclaimer sections */}
             {panelOrder.map((panelId: string) => {
               if (panelId === "starterQuestions") {
@@ -1789,10 +1802,9 @@ This will help us improve the Policy Assistant.`,
         <Button
           onClick={toggleDebug}
           variant="outline"
-          size="sm"
-          className="bg-white border-gray-300 hover:bg-gray-100"
+          className="bg-white border-gray-300 hover:bg-gray-100 text-xs sm:text-sm p-1 sm:p-2"
         >
-          <Bug className="h-4 w-4 mr-1" />
+          <Bug className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
           {isDebugMode() ? "Hide Debug" : "Debug"}
         </Button>
       </div>
