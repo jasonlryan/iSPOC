@@ -26,7 +26,7 @@ import { Card } from "./components/ui/card";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { createResponse } from "./lib/api";
-import { EnvDebug } from "./components/EnvDebug";
+// import { EnvDebug } from "./components/EnvDebug";
 import { MHALogo } from "./components/MHALogo";
 import { debug, initDebug, toggleDebug, isDebugMode } from "./lib/debug";
 import unifiedSystemPrompt from "./prompts/unified_system_prompt.md?raw";
@@ -1776,9 +1776,6 @@ This will help us improve the Policy Assistant.`,
           </div>
         </div>
       </div>
-
-      {/* Add the debug component */}
-      {/* {isDebugMode() && <EnvDebug />} */}
 
       {/* Add error message display */}
       {error && (
