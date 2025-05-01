@@ -17,9 +17,8 @@ import {
   // ClipboardList,
   MessageSquarePlus,
   Bug,
-  // FileText and BookOpen are unused, removing them
-  // FileText,
-  // BookOpen,
+  FileText,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
@@ -29,7 +28,8 @@ import { createResponse } from "./lib/api";
 import { EnvDebug } from "./components/EnvDebug";
 import { MHALogo } from "./components/MHALogo";
 import { debug, initDebug, toggleDebug, isDebugMode } from "./lib/debug";
-import unifiedSystemPrompt from "./prompts/unified_system_prompt.md?raw";
+import systemPrompt from "./prompts/system_prompt.md?raw";
+import guideSystemPrompt from "./prompts/guide_system_prompt.md?raw";
 import feedbackPrompt from "./prompts/feedback_prompt.md?raw";
 import {
   contentPanels,
@@ -145,9 +145,16 @@ function App() {
   // Create a ref to track whether we've already shown the thank you message
   const feedbackThankYouShown = useRef(false);
 
-  // Get the welcome message
-  const getWelcomeMessage = () => {
-    return "Hello! I'm your MHA Digital Assistant. How can I help you today?";
+  // Add state for current vector store ID
+  const [vectorStoreId, setVectorStoreId] = useState<string>(
+    import.meta.env.VITE_OPENAI_VECTOR_STORE_ID || "vs_S49gTBhlXwOSZFht2AqbPIsf"
+  );
+
+  // Function to get the welcome message based on the knowledge base type
+  const getWelcomeMessage = (isGuide: boolean) => {
+    return isGuide
+      ? "Hello! I'm your iSPoC 'How To' Assistant. How can I help you today?"
+      : "Hello! I'm your iSPoC Policy Assistant. How can I help you today?";
   };
 
   const [messages, setMessages] = useState<Message[]>([
@@ -157,7 +164,9 @@ function App() {
         {
           type: "text",
           text: {
-            value: getWelcomeMessage(),
+            value: getWelcomeMessage(
+              vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+            ),
           },
         },
       ],
@@ -184,181 +193,22 @@ function App() {
       debug.log("ui", `Raw text content: "${processed}"`);
     }
 
-    // Handle multiple Sources sections - keep only the last one
-    const sourceSections = processed.match(/\n[^\n]*Sources:?[^\n]*\n/g);
-    if (sourceSections && sourceSections.length > 1) {
-      console.warn(
-        `⚠️ Multiple Sources sections detected: ${sourceSections.length}`
-      );
-
-      // Find all positions of "Sources:" sections
-      let positions = [];
-      let regex = /\n[^\n]*Sources:?[^\n]*\n/g;
-      let match;
-
-      while ((match = regex.exec(processed)) !== null) {
-        positions.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          text: match[0],
-        });
-      }
-
-      // Keep only the last Sources section, remove all others
-      for (let i = 0; i < positions.length - 1; i++) {
-        const pos = positions[i];
-        console.warn(
-          `🗑️ Removing duplicate Sources section: "${pos.text.trim()}"`
-        );
-
-        // Remove this section and adjust text
-        const beforeSection = processed.substring(0, pos.start);
-        const afterSection = processed.substring(pos.end);
-        processed = beforeSection + "\n" + afterSection;
-
-        // Adjust remaining positions after removal
-        for (let j = i + 1; j < positions.length; j++) {
-          positions[j].start -= pos.end - pos.start - 1;
-          positions[j].end -= pos.end - pos.start - 1;
-        }
-      }
-
-      console.warn(`✅ Kept only the last Sources section`);
-    }
-
-    // 1. Extract document sources to format properly
-    let documentSources: { name: string; type: string }[] = [];
-
-    // Try to match the new format first: 【n:Name:Type】
-    const newFormatPattern = /【(\d+):([^:]+):([^】]+)】/g;
+    // 1. Extract guide sources to format properly
+    let guideSources: string[] = [];
+    const guideSourcePattern = /【\d+:([^】]+)】/g;
     let match;
-    let usedNewFormat = false;
 
-    // Find all document source references with new format
-    while ((match = newFormatPattern.exec(processed)) !== null) {
-      usedNewFormat = true;
-      // Extract source name and remove .json extension if present
-      const sourceName = match[2].replace(/\.json$/i, "");
-      const sourceType = match[3];
-      if (!documentSources.some((source) => source.name === sourceName)) {
-        documentSources.push({ name: sourceName, type: sourceType });
+    // Find all guide source references
+    while ((match = guideSourcePattern.exec(processed)) !== null) {
+      // Extract source name without the .json extension
+      const sourceName = match[1].replace(".json", "");
+      if (!guideSources.includes(sourceName)) {
+        guideSources.push(sourceName);
       }
     }
 
-    // If no matches with new format, try the old format: 【n:Name】
-    if (!usedNewFormat) {
-      const oldFormatPattern = /【\d+:([^】]+)】/g;
-      while ((match = oldFormatPattern.exec(processed)) !== null) {
-        // Extract source name and remove .json extension if present
-        const sourceName = match[1].replace(/\.json$/i, "");
-
-        // Infer document type from name patterns if not explicitly provided
-        let inferredType = "Guide";
-
-        // Policy documents typically start with identifiers like CP, HR, HS, FP, etc.
-        const policyPrefixes = [
-          "CP",
-          "HR",
-          "HS",
-          "FP",
-          "FR",
-          "DP",
-          "G",
-          "HP",
-          "IT",
-          "IG",
-          "VP",
-          "OPCS",
-          "MED",
-          "EST",
-          "MHAC",
-        ];
-        const nameWithoutExtension = sourceName.replace(/\s*\(\d+\)$/, ""); // Remove (1), (2) etc.
-
-        if (
-          policyPrefixes.some(
-            (prefix) =>
-              nameWithoutExtension.startsWith(prefix) &&
-              nameWithoutExtension.includes(" ")
-          )
-        ) {
-          inferredType = "Policy";
-        }
-
-        // Check for specific keywords in the name
-        if (nameWithoutExtension.toLowerCase().includes("policy")) {
-          inferredType = "Policy";
-        }
-
-        if (!documentSources.some((source) => source.name === sourceName)) {
-          documentSources.push({ name: sourceName, type: inferredType });
-        }
-      }
-    }
-
-    // Also look for plaintext sources in a "Sources" section
-    const sourcesSection = processed.match(
-      /Sources:?\s*((?:\d+\.\s*[^\n]+\n*)+)/i
-    );
-    if (sourcesSection && sourcesSection[1]) {
-      const sourceLines = sourcesSection[1].match(/\d+\.\s*([^\n]+)/g);
-      if (sourceLines) {
-        sourceLines.forEach((line) => {
-          // Extract name from the line, removing any numbers and dots at the beginning
-          const sourceName = line
-            .replace(/^\d+\.\s*/, "")
-            .trim()
-            .replace(/\.json$/i, "");
-
-          // Infer document type
-          let inferredType = "Guide";
-          const policyPrefixes = [
-            "CP",
-            "HR",
-            "HS",
-            "FP",
-            "FR",
-            "DP",
-            "G",
-            "HP",
-            "IT",
-            "IG",
-            "VP",
-            "OPCS",
-            "MED",
-            "EST",
-            "MHAC",
-          ];
-          const nameWithoutExtension = sourceName.replace(/\s*\(\d+\)$/, "");
-
-          if (
-            policyPrefixes.some(
-              (prefix) =>
-                nameWithoutExtension.startsWith(prefix) &&
-                nameWithoutExtension.includes(" ")
-            )
-          ) {
-            inferredType = "Policy";
-          }
-
-          if (nameWithoutExtension.toLowerCase().includes("policy")) {
-            inferredType = "Policy";
-          }
-
-          // Add to sources if not already present
-          if (!documentSources.some((source) => source.name === sourceName)) {
-            documentSources.push({ name: sourceName, type: inferredType });
-          }
-        });
-      }
-    }
-
-    // 2. Remove raw citation patterns from both formats
-    if (usedNewFormat) {
-      processed = processed.replace(/【\d+:[^:]+:[^】]+】/g, "");
-    } else {
-      processed = processed.replace(/【\d+:[^】]+】/g, "");
-    }
+    // 2. Remove raw citation patterns from the text
+    processed = processed.replace(/【\d+:[^】]+】/g, "");
 
     // 3. Old citation pattern clean-up
     const beforeCitationRemoval = processed.length;
@@ -387,30 +237,19 @@ function App() {
       );
     }
 
-    // 5. Look for a Sources section that may already have been added by the LLM
-    const sourcesIndex = processed.lastIndexOf("\n**Sources:**");
-    if (sourcesIndex > 0) {
-      // Cut off any existing sources section - we'll add our own
-      processed = processed.substring(0, sourcesIndex).trim();
-    }
-
-    // 6. Add formatted sources section if sources were found
-    if (documentSources.length > 0) {
+    // 5. Add formatted sources section if sources were found
+    if (guideSources.length > 0) {
       processed = processed.trim();
       processed += "\n\n**Sources:**\n";
-      documentSources.forEach((source, index) => {
-        // Add icon based on document type
-        const icon = source.type === "Guide" ? "📘" : "📜";
-        // Make sure name doesn't have .json extension
-        const cleanName = source.name.replace(/\.json$/i, "");
-        processed += `${index + 1}. ${icon} ${cleanName}\n`;
+      guideSources.forEach((source, index) => {
+        processed += `${index + 1}. ${source}\n`;
       });
     }
 
-    // 7. Trim whitespace from start/end only
+    // 6. Trim whitespace from start/end only
     processed = processed.trim();
 
-    // 8. Debug output text
+    // 7. Debug output text
     if (processed.length > 0 && processed.length < 100) {
       debug.log("ui", `Processed markdown text: "${processed}"`);
     } else {
@@ -682,8 +521,13 @@ This will help us improve the Policy Assistant.`,
                 return newMessages;
               });
             },
-            mode === "feedback" ? feedbackPrompt : unifiedSystemPrompt,
-            signal
+            mode === "feedback"
+              ? feedbackPrompt
+              : vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+              ? guideSystemPrompt
+              : systemPrompt,
+            signal,
+            vectorStoreId
           );
 
         // Store the response ID for multi-turn conversation
@@ -891,7 +735,9 @@ This will help us improve the Policy Assistant.`,
           {
             type: "text",
             text: {
-              value: getWelcomeMessage(),
+              value: getWelcomeMessage(
+                vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+              ),
             },
           },
         ],
@@ -1035,6 +881,32 @@ This will help us improve the Policy Assistant.`,
     }
   }, [isLoading]);
 
+  // Add this code to handle vector store changes and update the welcome message
+  const handleVectorStoreChange = (storeId: string) => {
+    setVectorStoreId(storeId);
+    console.log(`Vector store changed to: ${storeId}`);
+
+    // Update welcome message when switching knowledge base
+    const isGuide = storeId === "vs_68121a5f918c81919040f9caa54ff5ce";
+
+    // Only update the welcome message if no conversation has occurred yet
+    if (messages.length === 1 && messages[0].type === "ai") {
+      setMessages([
+        {
+          type: "ai",
+          content: [
+            {
+              type: "text",
+              text: {
+                value: getWelcomeMessage(isGuide),
+              },
+            },
+          ],
+        },
+      ]);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
       {/* Mobile Menu Toggle */}
@@ -1098,15 +970,27 @@ This will help us improve the Policy Assistant.`,
               {/* Chat Header */}
               <div
                 className={`${
-                  mode === "feedback" ? "bg-mha-pink" : "bg-mha-blue"
+                  mode === "feedback"
+                    ? "bg-mha-pink"
+                    : vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+                    ? "bg-[#6bbbae]" // Use teal color for guides
+                    : "bg-mha-blue" // Keep blue for policies
                 } text-white p-4 flex-shrink-0`}
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-semibold">
-                      {mode === "feedback"
-                        ? "Feedback Survey"
-                        : "MHA Digital Assistant"}
+                      {mode === "feedback" ? (
+                        "Feedback Survey"
+                      ) : (
+                        <>
+                          iSPoC <span className="font-normal">|</span>{" "}
+                          {vectorStoreId ===
+                          "vs_68121a5f918c81919040f9caa54ff5ce"
+                            ? "How To Assistant"
+                            : "Policy Assistant"}
+                        </>
+                      )}
                     </h2>
                     <p className="text-sm opacity-80">
                       {mode === "feedback"
@@ -1119,7 +1003,12 @@ This will help us improve the Policy Assistant.`,
                     className={
                       mode === "feedback"
                         ? "bg-white text-mha-pink hover:bg-gray-100 font-medium px-4 py-2"
-                        : "bg-white text-mha-blue hover:bg-gray-100 font-medium px-4 py-2"
+                        : `bg-white ${
+                            vectorStoreId ===
+                            "vs_68121a5f918c81919040f9caa54ff5ce"
+                              ? "text-[#6bbbae]" // Teal text for guides
+                              : "text-mha-blue" // Blue text for policies
+                          } hover:bg-gray-100 font-medium px-4 py-2`
                     }
                     onClick={handleNewChat}
                   >
@@ -1327,6 +1216,9 @@ This will help us improve the Policy Assistant.`,
                                       String(message.type) === "user"
                                         ? mode === "feedback"
                                           ? "bg-mha-pink text-white" // Pink for feedback
+                                          : vectorStoreId ===
+                                            "vs_68121a5f918c81919040f9caa54ff5ce"
+                                          ? "bg-[#6bbbae] text-white" // Teal for Guides
                                           : "bg-mha-blue text-white" // Blue for Policies
                                         : "bg-white"
                                     }`}
@@ -1456,6 +1348,9 @@ This will help us improve the Policy Assistant.`,
                               String(message.type) === "user"
                                 ? mode === "feedback"
                                   ? "bg-mha-pink text-white" // Pink for feedback
+                                  : vectorStoreId ===
+                                    "vs_68121a5f918c81919040f9caa54ff5ce"
+                                  ? "bg-[#6bbbae] text-white" // Teal for Guides
                                   : "bg-mha-blue text-white" // Blue for Policies
                                 : "bg-white"
                             }`}
@@ -1490,6 +1385,47 @@ This will help us improve the Policy Assistant.`,
                   >
                     <Send className="h-5 w-5" />
                   </Button>
+                </div>
+
+                {/* Knowledge Base Selector */}
+                <div className="flex items-center mt-3 text-sm">
+                  <span className="mr-2 text-gray-600">Knowledge Base:</span>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={mode === "feedback"}
+                      className={`px-3 py-1 flex items-center ${
+                        vectorStoreId === "vs_S49gTBhlXwOSZFht2AqbPIsf"
+                          ? "bg-mha-blue text-white border-mha-blue"
+                          : "bg-white text-gray-700"
+                      }`}
+                      onClick={() =>
+                        handleVectorStoreChange("vs_S49gTBhlXwOSZFht2AqbPIsf")
+                      }
+                    >
+                      <FileText className="mr-1 h-3 w-3" />
+                      Policies
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={mode === "feedback"}
+                      className={`px-3 py-1 flex items-center ${
+                        vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
+                          ? "bg-[#6bbbae] text-white border-[#6bbbae]"
+                          : "bg-white text-gray-700"
+                      }`}
+                      onClick={() =>
+                        handleVectorStoreChange(
+                          "vs_68121a5f918c81919040f9caa54ff5ce"
+                        )
+                      }
+                    >
+                      <BookOpen className="mr-1 h-3 w-3" />
+                      Guides
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -1778,7 +1714,7 @@ This will help us improve the Policy Assistant.`,
       </div>
 
       {/* Add the debug component */}
-      {isDebugMode() && <EnvDebug />}
+      {isDebugMode() && <EnvDebug vectorStoreId={vectorStoreId} />}
 
       {/* Add error message display */}
       {error && (
