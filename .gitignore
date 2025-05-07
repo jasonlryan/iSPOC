@@ -38,6 +38,13 @@ Thumbs.db
 
 # Ignore raw policies folder
 /raw policies/
+iSPOC/raw policies/
+iSPOC/raw_guides/
+
+# Ignore vector data folders
+/VECTOR_GUIDES_JSON/
+/VECTOR_JSON/
 
 # Node modules
 node_modules/ 
+iSPOC/node_modules/ 
