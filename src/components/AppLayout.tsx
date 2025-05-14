@@ -180,7 +180,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                           <div
                             key={index}
                             className="p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer"
-                            onClick={() => handleSend(question.question)}
+                            onClick={() => {
+                              handleSend(question.question);
+                              setHelpPanelOpen(false);
+                            }}
                           >
                             <p className="font-medium text-mha-blue">
                               {question.title}

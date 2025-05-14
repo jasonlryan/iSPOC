@@ -574,7 +574,12 @@ This will help us improve the Digital Assistant.`,
   useEffect(() => {
     // Find the viewport element inside our ScrollArea after components mount
     const viewportElement = document.querySelector(
-      ".chat-scroll-area > [data-radix-scroll-area-viewport]"
+      ".chat-scroll-area [data-radix-scroll-area-viewport]"
+    );
+
+    console.log(
+      "[SCROLL DEBUG] Initial attempt. viewportElement:",
+      viewportElement
     );
 
     if (viewportElement) {
@@ -616,7 +621,11 @@ This will help us improve the Digital Assistant.`,
       // Set up a retry mechanism
       const retryTimeout = setTimeout(() => {
         const retryViewportElement = document.querySelector(
-          ".chat-scroll-area > [data-radix-scroll-area-viewport]"
+          ".chat-scroll-area [data-radix-scroll-area-viewport]"
+        );
+        console.log(
+          "[SCROLL DEBUG] Retry attempt. retryViewportElement:",
+          retryViewportElement
         );
         if (retryViewportElement) {
           viewportRef.current = retryViewportElement as HTMLDivElement;
@@ -828,8 +837,8 @@ This will help us improve the Digital Assistant.`,
           {/* Two-column Layout for chat and right desktop sidebar */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 h-full">
             {/* Chat Area - Left Column */}
-            <div className="mt-12 lg:mt-0 flex flex-col flex-1 h-full">
-              <Card className="flex flex-col bg-white rounded-lg shadow-lg h-full relative">
+            <div className="mt-12 lg:mt-0 flex flex-col flex-1 min-h-0 h-full">
+              <Card className="flex flex-col bg-white rounded-lg shadow-lg h-full flex-grow overflow-hidden relative">
                 {/* Chat Header */}
                 <div
                   className={`${
@@ -885,365 +894,357 @@ This will help us improve the Digital Assistant.`,
                   </div>
                 </div>
 
-                {/* Chat Messages Container - Take all space except for input height */}
-                <div className="flex-1 overflow-y-auto">
-                  {/* ScrollArea for messages */}
-                  <ScrollArea className="h-full p-4 chat-scroll-area custom-scrollbar">
-                    <div className="space-y-4 pb-2 mb-2">
-                      {messages.map((message, index) => {
-                        let messageContentElement: React.ReactNode = null;
+                {/* Chat Messages */}
+                {/* ScrollArea now owns full flex height */}
+                <ScrollArea className="h-full flex-grow p-4 chat-scroll-area custom-scrollbar">
+                  <div className="space-y-4 pb-2 mb-2">
+                    {messages.map((message, index) => {
+                      let messageContentElement: React.ReactNode = null;
 
-                        // Check if this is the first message in feedback mode and add a special button
-                        const isFirstFeedbackMessage =
-                          mode === "feedback" &&
-                          index === 0 &&
-                          message.type === "ai" &&
-                          !isLoading;
+                      // Check if this is the first message in feedback mode and add a special button
+                      const isFirstFeedbackMessage =
+                        mode === "feedback" &&
+                        index === 0 &&
+                        message.type === "ai" &&
+                        !isLoading;
 
-                        if (message.type === "user") {
-                          // User message content is always a string
+                      if (message.type === "user") {
+                        // User message content is always a string
+                        messageContentElement = (
+                          <p className="whitespace-pre-wrap">
+                            {message.content as string}
+                          </p>
+                        );
+                      } else {
+                        // AI message content is TextContentItem[]
+                        const aiContent = message.content as TextContentItem[]; // Type assertion
+
+                        // Helper function to check if content is empty
+                        const isEmptyContent = () => {
+                          if (
+                            !Array.isArray(aiContent) ||
+                            aiContent.length === 0
+                          )
+                            return true;
+                          if (
+                            aiContent.length === 1 &&
+                            aiContent[0].type === "text"
+                          ) {
+                            return (
+                              !aiContent[0].text?.value ||
+                              aiContent[0].text.value.trim() === ""
+                            );
+                          }
+                          return false;
+                        };
+
+                        // Check if this is a loading message (last AI message while loading)
+                        const isLoadingMessage =
+                          isLoading &&
+                          index === messages.length - 1 &&
+                          message.type === "ai";
+
+                        // First check: Is this a loading message?
+                        if (isLoadingMessage && isEmptyContent()) {
+                          // Show loading animation
                           messageContentElement = (
-                            <p className="whitespace-pre-wrap">
-                              {message.content as string}
-                            </p>
+                            <div className="flex items-center space-x-2">
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "0ms" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "150ms" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "300ms" }}
+                              ></div>
+                            </div>
+                          );
+                        }
+                        // Second check: Is this an empty message?
+                        else if (isEmptyContent()) {
+                          // Empty message but not loading - show placeholder
+                          messageContentElement = (
+                            <p className="text-gray-400">...</p>
+                          );
+                        }
+                        // Special case: Check for JSON feedback results
+                        else if (
+                          mode === "feedback" &&
+                          aiContent.length === 1 &&
+                          aiContent[0].type === "text" &&
+                          typeof aiContent[0].text?.value === "string" &&
+                          aiContent[0].text.value.trim().startsWith("{") &&
+                          aiContent[0].text.value.trim().endsWith("}")
+                        ) {
+                          console.log(
+                            "🟢 DETECTED JSON FEEDBACK:",
+                            aiContent[0].text.value
+                          );
+
+                          try {
+                            // Parse the JSON
+                            const json = JSON.parse(
+                              aiContent[0].text.value.trim()
+                            );
+
+                            // Check if this is a complete feedback response
+                            if (
+                              json.q1 &&
+                              json.q2 &&
+                              json.q3 &&
+                              json.q4 &&
+                              json.q5
+                            ) {
+                              console.log(
+                                "✅ Valid feedback JSON detected, showing thank you message"
+                              );
+
+                              // Show a nice thank you message instead of raw JSON
+                              messageContentElement = (
+                                <div>
+                                  <div className="prose prose-sm max-w-none">
+                                    <h4 className="text-mha-blue font-semibold mb-2">
+                                      Thank you for your feedback!
+                                    </h4>
+                                    <p className="mb-2">
+                                      Your responses have been recorded:
+                                    </p>
+                                    <ul className="list-disc pl-5 mb-3">
+                                      <li>
+                                        <strong>Rating:</strong> {json.q1}
+                                      </li>
+                                      <li>
+                                        <strong>Liked:</strong> {json.q2}
+                                      </li>
+                                      <li>
+                                        <strong>Frustrated:</strong> {json.q3}
+                                      </li>
+                                      <li>
+                                        <strong>Feature Request:</strong>{" "}
+                                        {json.q4}
+                                      </li>
+                                      <li>
+                                        <strong>Recommendation:</strong>{" "}
+                                        {json.q5}
+                                      </li>
+                                      <li>
+                                        <strong>Additional Comments:</strong>{" "}
+                                        {json.q6}
+                                      </li>
+                                    </ul>
+                                    <p>
+                                      This will help us improve the Digital
+                                      Assistant.
+                                    </p>
+                                  </div>
+
+                                  <div className="flex justify-center w-full mt-4">
+                                    <Button
+                                      className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-2 mb-2 text-base"
+                                      onClick={() => {
+                                        // Reset to policy mode
+                                        setMode("policy");
+                                        // Clear feedback answers
+                                        setFeedbackAnswers(null);
+                                        // Reset feedback thank you shown flag
+                                        feedbackThankYouShown.current = false;
+                                        // Clear messages and start a new chat
+                                        handleNewChat();
+                                      }}
+                                    >
+                                      Return to Digital Assistant
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+
+                              // Store the feedback answers if not already stored
+                              if (!feedbackAnswers) {
+                                setFeedbackAnswers(json);
+                                feedbackThankYouShown.current = true;
+                              }
+
+                              // Return early since we've handled this message
+                              return (
+                                <div
+                                  key={index}
+                                  className={
+                                    String(message.type) === "user"
+                                      ? "flex justify-end"
+                                      : "flex justify-start"
+                                  }
+                                >
+                                  <Card
+                                    className={`max-w-[80%] p-3 ${
+                                      String(message.type) === "user"
+                                        ? mode === "feedback"
+                                          ? "bg-mha-pink text-white" // Pink for feedback
+                                          : vectorStoreId ===
+                                            "vs_68121a5f918c81919040f9caa54ff5ce"
+                                          ? "bg-[#6bbbae] text-white" // Teal for Guides
+                                          : "bg-mha-blue text-white" // Blue for Policies
+                                        : "bg-white"
+                                    }`}
+                                  >
+                                    {messageContentElement}
+                                  </Card>
+                                </div>
+                              );
+                            }
+                          } catch (err) {
+                            console.error("Error parsing feedback JSON:", err);
+                          }
+                        }
+                        // Third case: Check for returnButton contents
+                        else if (
+                          aiContent.length === 1 &&
+                          aiContent[0].type === "text" &&
+                          typeof aiContent[0].text?.value === "string" &&
+                          aiContent[0].text?.value === "returnButton"
+                        ) {
+                          console.log(
+                            "😎 RETURN BUTTON DETECTED - EXACT MATCH"
+                          );
+
+                          messageContentElement = (
+                            <div className="flex justify-center w-full">
+                              <Button
+                                className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
+                                onClick={() => {
+                                  // Reset to policy mode
+                                  setMode("policy");
+                                  // Clear feedback answers
+                                  setFeedbackAnswers(null);
+                                  // Reset feedback thank you shown flag
+                                  feedbackThankYouShown.current = false;
+                                  // Clear messages and start a new chat
+                                  handleNewChat();
+                                }}
+                              >
+                                Return to Digital Assistant
+                              </Button>
+                            </div>
                           );
                         } else {
-                          // AI message content is TextContentItem[]
-                          const aiContent =
-                            message.content as TextContentItem[]; // Type assertion
-
-                          // Helper function to check if content is empty
-                          const isEmptyContent = () => {
-                            if (
-                              !Array.isArray(aiContent) ||
-                              aiContent.length === 0
-                            )
-                              return true;
-                            if (
-                              aiContent.length === 1 &&
-                              aiContent[0].type === "text"
-                            ) {
-                              return (
-                                !aiContent[0].text?.value ||
-                                aiContent[0].text.value.trim() === ""
-                              );
-                            }
-                            return false;
-                          };
-
-                          // Check if this is a loading message (last AI message while loading)
-                          const isLoadingMessage =
-                            isLoading &&
-                            index === messages.length - 1 &&
-                            message.type === "ai";
-
-                          // First check: Is this a loading message?
-                          if (isLoadingMessage && isEmptyContent()) {
-                            // Show loading animation
-                            messageContentElement = (
-                              <div className="flex items-center space-x-2">
-                                <div
-                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                  style={{ animationDelay: "0ms" }}
-                                ></div>
-                                <div
-                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                  style={{ animationDelay: "150ms" }}
-                                ></div>
-                                <div
-                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                  style={{ animationDelay: "300ms" }}
-                                ></div>
-                              </div>
-                            );
-                          }
-                          // Second check: Is this an empty message?
-                          else if (isEmptyContent()) {
-                            // Empty message but not loading - show placeholder
-                            messageContentElement = (
-                              <p className="text-gray-400">...</p>
-                            );
-                          }
-                          // Special case: Check for JSON feedback results
-                          else if (
-                            mode === "feedback" &&
-                            aiContent.length === 1 &&
-                            aiContent[0].type === "text" &&
-                            typeof aiContent[0].text?.value === "string" &&
-                            aiContent[0].text.value.trim().startsWith("{") &&
-                            aiContent[0].text.value.trim().endsWith("}")
-                          ) {
-                            console.log(
-                              "🟢 DETECTED JSON FEEDBACK:",
-                              aiContent[0].text.value
-                            );
-
-                            try {
-                              // Parse the JSON
-                              const json = JSON.parse(
-                                aiContent[0].text.value.trim()
-                              );
-
-                              // Check if this is a complete feedback response
+                          // Combine all text items into a single string
+                          const combinedText = aiContent
+                            .map((item) => {
+                              // Make sure item is a TextContentItem before accessing text
                               if (
-                                json.q1 &&
-                                json.q2 &&
-                                json.q3 &&
-                                json.q4 &&
-                                json.q5
+                                item.type === "text" &&
+                                item.text &&
+                                typeof item.text.value === "string"
                               ) {
-                                console.log(
-                                  "✅ Valid feedback JSON detected, showing thank you message"
-                                );
-
-                                // Show a nice thank you message instead of raw JSON
-                                messageContentElement = (
-                                  <div>
-                                    <div className="prose prose-sm max-w-none">
-                                      <h4 className="text-mha-blue font-semibold mb-2">
-                                        Thank you for your feedback!
-                                      </h4>
-                                      <p className="mb-2">
-                                        Your responses have been recorded:
-                                      </p>
-                                      <ul className="list-disc pl-5 mb-3">
-                                        <li>
-                                          <strong>Rating:</strong> {json.q1}
-                                        </li>
-                                        <li>
-                                          <strong>Liked:</strong> {json.q2}
-                                        </li>
-                                        <li>
-                                          <strong>Frustrated:</strong> {json.q3}
-                                        </li>
-                                        <li>
-                                          <strong>Feature Request:</strong>{" "}
-                                          {json.q4}
-                                        </li>
-                                        <li>
-                                          <strong>Recommendation:</strong>{" "}
-                                          {json.q5}
-                                        </li>
-                                        <li>
-                                          <strong>Additional Comments:</strong>{" "}
-                                          {json.q6}
-                                        </li>
-                                      </ul>
-                                      <p>
-                                        This will help us improve the Digital
-                                        Assistant.
-                                      </p>
-                                    </div>
-
-                                    <div className="flex justify-center w-full mt-4">
-                                      <Button
-                                        className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-2 mb-2 text-base"
-                                        onClick={() => {
-                                          // Reset to policy mode
-                                          setMode("policy");
-                                          // Clear feedback answers
-                                          setFeedbackAnswers(null);
-                                          // Reset feedback thank you shown flag
-                                          feedbackThankYouShown.current = false;
-                                          // Clear messages and start a new chat
-                                          handleNewChat();
-                                        }}
-                                      >
-                                        Return to Digital Assistant
-                                      </Button>
-                                    </div>
-                                  </div>
-                                );
-
-                                // Store the feedback answers if not already stored
-                                if (!feedbackAnswers) {
-                                  setFeedbackAnswers(json);
-                                  feedbackThankYouShown.current = true;
-                                }
-
-                                // Return early since we've handled this message
-                                return (
-                                  <div
-                                    key={index}
-                                    className={
-                                      String(message.type) === "user"
-                                        ? "flex justify-end"
-                                        : "flex justify-start"
-                                    }
-                                  >
-                                    <Card
-                                      className={`max-w-[80%] p-3 ${
-                                        String(message.type) === "user"
-                                          ? mode === "feedback"
-                                            ? "bg-mha-pink text-white" // Pink for feedback
-                                            : vectorStoreId ===
-                                              "vs_68121a5f918c81919040f9caa54ff5ce"
-                                            ? "bg-[#6bbbae] text-white" // Teal for Guides
-                                            : "bg-mha-blue text-white" // Blue for Policies
-                                          : "bg-white"
-                                      }`}
-                                    >
-                                      {messageContentElement}
-                                    </Card>
-                                  </div>
-                                );
+                                return item.text.value;
                               }
-                            } catch (err) {
-                              console.error(
-                                "Error parsing feedback JSON:",
-                                err
-                              );
-                            }
-                          }
-                          // Third case: Check for returnButton contents
-                          else if (
-                            aiContent.length === 1 &&
-                            aiContent[0].type === "text" &&
-                            typeof aiContent[0].text?.value === "string" &&
-                            aiContent[0].text?.value === "returnButton"
-                          ) {
-                            console.log(
-                              "😎 RETURN BUTTON DETECTED - EXACT MATCH"
-                            );
+                              return "";
+                            })
+                            .join("\n"); // Join with single newline
 
+                          // Pre-process the combined text before passing to Markdown parser
+                          const processedText =
+                            processTextForMarkdown(combinedText);
+
+                          // Check if this is an error message from the API
+                          if (processedText.startsWith("⚠️")) {
                             messageContentElement = (
-                              <div className="flex justify-center w-full">
-                                <Button
-                                  className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
-                                  onClick={() => {
-                                    // Reset to policy mode
-                                    setMode("policy");
-                                    // Clear feedback answers
-                                    setFeedbackAnswers(null);
-                                    // Reset feedback thank you shown flag
-                                    feedbackThankYouShown.current = false;
-                                    // Clear messages and start a new chat
-                                    handleNewChat();
-                                  }}
-                                >
-                                  Return to Digital Assistant
-                                </Button>
+                              <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
+                                {processedText}
                               </div>
                             );
                           } else {
-                            // Combine all text items into a single string
-                            const combinedText = aiContent
-                              .map((item) => {
-                                // Make sure item is a TextContentItem before accessing text
-                                if (
-                                  item.type === "text" &&
-                                  item.text &&
-                                  typeof item.text.value === "string"
-                                ) {
-                                  return item.text.value;
-                                }
-                                return "";
-                              })
-                              .join("\n"); // Join with single newline
-
-                            // Pre-process the combined text before passing to Markdown parser
-                            const processedText =
-                              processTextForMarkdown(combinedText);
-
-                            // Check if this is an error message from the API
-                            if (processedText.startsWith("⚠️")) {
-                              messageContentElement = (
-                                <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
-                                  {processedText}
-                                </div>
-                              );
-                            } else {
-                              messageContentElement = (
-                                <div className="prose prose-sm max-w-none ai-message-content">
-                                  {/* Pass PRE-PROCESSED text to ReactMarkdown */}
-                                  <ReactMarkdown
-                                    components={markdownComponents}
-                                  >
-                                    {processedText}
-                                  </ReactMarkdown>
-                                </div>
-                              );
-                            }
-                          }
-
-                          // Add survey start button if this is the first message in feedback mode
-                          if (isFirstFeedbackMessage && messages.length === 1) {
-                            const content = aiContent
-                              .filter((item) => item.type === "text")
-                              .map((item) => item.text.value)
-                              .join("\n");
-
                             messageContentElement = (
-                              <div>
-                                <p className="whitespace-pre-wrap">{content}</p>
-                                <div className="mt-4">
-                                  <Button
-                                    className="bg-mha-pink hover:bg-mha-pink-dark text-white"
-                                    onClick={() => {
-                                      // Send message to start the survey
-                                      handleSend("start");
-                                    }}
-                                  >
-                                    Let's start the survey!
-                                  </Button>
-                                </div>
+                              <div className="prose prose-sm max-w-none ai-message-content">
+                                {/* Pass PRE-PROCESSED text to ReactMarkdown */}
+                                <ReactMarkdown components={markdownComponents}>
+                                  {processedText}
+                                </ReactMarkdown>
                               </div>
                             );
                           }
                         }
 
-                        return (
-                          <div
-                            key={index}
-                            className={
-                              String(message.type) === "user"
-                                ? "flex justify-end"
-                                : "flex justify-start"
-                            }
-                          >
-                            <Card
-                              className={`max-w-[80%] p-3 ${
-                                String(message.type) === "user"
-                                  ? mode === "feedback"
-                                    ? "bg-mha-pink text-white" // Pink for feedback
-                                    : vectorStoreId ===
-                                      "vs_68121a5f918c81919040f9caa54ff5ce"
-                                    ? "bg-[#6bbbae] text-white" // Teal for Guides
-                                    : "bg-mha-blue text-white" // Blue for Policies
-                                  : "bg-white"
-                              }`}
-                            >
-                              {messageContentElement}
-                            </Card>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
+                        // Add survey start button if this is the first message in feedback mode
+                        if (isFirstFeedbackMessage && messages.length === 1) {
+                          const content = aiContent
+                            .filter((item) => item.type === "text")
+                            .map((item) => item.text.value)
+                            .join("\n");
 
-                  {/* Re-add scroll to bottom button, adjusted position */}
-                  {!isAtBottom && (
-                    <div className="absolute bottom-[96px] left-0 w-full flex justify-center z-10">
-                      <Button
-                        onClick={() => {
-                          if (viewportRef.current) {
-                            viewportRef.current.scrollTo({
-                              top: viewportRef.current.scrollHeight,
-                              behavior: "smooth",
-                            });
-                            setIsAtBottom(true);
+                          messageContentElement = (
+                            <div>
+                              <p className="whitespace-pre-wrap">{content}</p>
+                              <div className="mt-4">
+                                <Button
+                                  className="bg-mha-pink hover:bg-mha-pink-dark text-white"
+                                  onClick={() => {
+                                    // Send message to start the survey
+                                    handleSend("start");
+                                  }}
+                                >
+                                  Let's start the survey!
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        }
+                      }
+
+                      return (
+                        <div
+                          key={index}
+                          className={
+                            String(message.type) === "user"
+                              ? "flex justify-end"
+                              : "flex justify-start"
                           }
-                        }}
-                        className="rounded-full shadow-lg bg-mha-blue hover:bg-mha-blue-dark p-2 opacity-80 hover:opacity-100 transition-opacity"
-                        aria-label="Scroll to bottom"
-                      >
-                        <ChevronDown className="h-5 w-5 text-white" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                        >
+                          <Card
+                            className={`max-w-[80%] p-3 ${
+                              String(message.type) === "user"
+                                ? mode === "feedback"
+                                  ? "bg-mha-pink text-white" // Pink for feedback
+                                  : vectorStoreId ===
+                                    "vs_68121a5f918c81919040f9caa54ff5ce"
+                                  ? "bg-[#6bbbae] text-white" // Teal for Guides
+                                  : "bg-mha-blue text-white" // Blue for Policies
+                                : "bg-white"
+                            }`}
+                          >
+                            {messageContentElement}
+                          </Card>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
 
-                {/* Input bar: now sticky, z-30 */}
+                {/* Re-add scroll to bottom button, adjusted position */}
+                {!isAtBottom && (
+                  <div className="absolute bottom-[96px] left-0 w-full flex justify-center z-10">
+                    <Button
+                      onClick={() => {
+                        if (viewportRef.current) {
+                          viewportRef.current.scrollTo({
+                            top: viewportRef.current.scrollHeight,
+                            behavior: "smooth",
+                          });
+                          setIsAtBottom(true);
+                        }
+                      }}
+                      className="rounded-full shadow-lg bg-mha-blue hover:bg-mha-blue-dark p-2 opacity-80 hover:opacity-100 transition-opacity"
+                      aria-label="Scroll to bottom"
+                    >
+                      <ChevronDown className="h-5 w-5 text-white" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Input bar */}
                 <div className="sticky bottom-0 left-0 right-0 bg-white p-4 border-t flex gap-2 items-end z-30 shadow-md">
                   <textarea
                     ref={inputRef}
