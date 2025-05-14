@@ -1,7 +1,3 @@
-/**
- * Protected admin API endpoint to retrieve all query log data as CSV
- */
-
 const { handleAdminLogs } = require("../handlers");
 
 module.exports = async function handler(req, res) {
