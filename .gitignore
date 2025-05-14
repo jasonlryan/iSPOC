@@ -1,0 +1,48 @@
+# MHA project gitignore
+
+# Backup and temporary files
+Policy_Documents_Metadata_Index_*.json
+.gitignore_files/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+!src/lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Ignore raw policies folder (now relative to iSPOC)
+raw policies/
+raw_guides/
+
+# Ignore vector data folders (now relative to iSPOC)
+VECTOR_GUIDES_JSON/
+VECTOR_JSON/
+
+# Node modules (now relative to iSPOC)
+node_modules/
