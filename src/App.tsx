@@ -10,9 +10,7 @@ import {
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { createResponse } from "./lib/api";
-import systemPrompt from "./prompts/system_prompt.md?raw";
-import guideSystemPrompt from "./prompts/guide_system_prompt.md?raw";
+import { createResponse, unifiedSystemPrompt } from "./lib/api";
 import feedbackPrompt from "./prompts/feedback_prompt.md?raw";
 import {
   contentPanels,
@@ -174,7 +172,7 @@ function App() {
     // Find all guide source references
     while ((match = guideSourcePattern.exec(processed)) !== null) {
       // Extract source name without the .json extension
-      const sourceName = match[1].replace(".json", "");
+      const sourceName = match[1].replace(/\.(json|md|txt)$/i, "");
       if (!guideSources.includes(sourceName)) {
         guideSources.push(sourceName);
       }
@@ -186,7 +184,7 @@ function App() {
 
     while ((match = policySourcePattern.exec(processed)) !== null) {
       if (match[3]) {
-        const sourceName = match[3].trim();
+        const sourceName = match[3].trim().replace(/\.(json|md|txt)$/i, "");
         sourcesSet.add(sourceName);
       }
     }
@@ -216,11 +214,16 @@ function App() {
     // Combine both types of sources and deduplicate them
     const allSources = [...new Set([...guideSources, ...policySources])];
 
-    if (allSources.length > 0) {
+    if (
+      allSources.length > 0 &&
+      !processed.toLowerCase().includes("**sources:**")
+    ) {
       processed = processed.trim();
       processed += "\n\n**Sources:**\n";
       allSources.forEach((source, index) => {
-        processed += `${index + 1}. 📜 ${source}\n`;
+        // Use proper emoji based on whether it was found in guideSources or policySources
+        const emoji = guideSources.includes(source) ? "📘" : "📜";
+        processed += `${index + 1}. ${emoji} ${source}\n`;
       });
     }
 
@@ -230,7 +233,11 @@ function App() {
     return processed;
   };
 
+  const autoscrollEnabledRef = useRef(true);
+  const [autoscrollEnabled, setAutoscrollEnabled] = useState(true);
+
   const handleSend = async (messageToSend?: string) => {
+    autoscrollEnabledRef.current = true;
     const message = messageToSend || input;
 
     if (message.trim() && !isLoading) {
@@ -473,11 +480,7 @@ This will help us improve the Digital Assistant.`,
                 return newMessages;
               });
             },
-            mode === "feedback"
-              ? feedbackPrompt
-              : vectorStoreId === "vs_68121a5f918c81919040f9caa54ff5ce"
-              ? guideSystemPrompt
-              : systemPrompt,
+            mode === "feedback" ? feedbackPrompt : unifiedSystemPrompt,
             signal
           );
 
@@ -532,43 +535,59 @@ This will help us improve the Digital Assistant.`,
     }
   };
 
+  // Add a new state for userHasScrolledUp
+  const userHasScrolledUpRef = useRef(false);
+
+  // Bulletproof autoscroll interruption: add all relevant event listeners
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const onUserScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      const atBottom = scrollHeight - (scrollTop + clientHeight) < 40; // 40-px tolerance
+
+      setIsAtBottom(atBottom);
+
+      // Sync autoscroll state
+      autoscrollEnabledRef.current = atBottom;
+      setAutoscrollEnabled(atBottom);
+    };
+
+    // Pointer & wheel merely initiate scroll; rely on scroll handler to compute position.
+    viewport.addEventListener("scroll", onUserScroll, { passive: true });
+    viewport.addEventListener("pointerdown", onUserScroll, { passive: true });
+    viewport.addEventListener("touchstart", onUserScroll, { passive: true });
+    viewport.addEventListener("wheel", onUserScroll, { passive: true });
+
+    return () => {
+      viewport.removeEventListener("scroll", onUserScroll);
+      viewport.removeEventListener("pointerdown", onUserScroll);
+      viewport.removeEventListener("touchstart", onUserScroll);
+      viewport.removeEventListener("wheel", onUserScroll);
+    };
+  }, []);
+
   // Effect to scroll to bottom automatically when messages change
   useEffect(() => {
-    // Only scroll if user is already at the bottom or it's the first message
-    if (isAtBottom || messages.length <= 1) {
+    if ((autoscrollEnabledRef.current && isAtBottom) || messages.length <= 1) {
       const scrollTimeout = setTimeout(() => {
-        if (viewportRef.current) {
+        if (autoscrollEnabledRef.current && viewportRef.current) {
           viewportRef.current.scrollTo({
             top: viewportRef.current.scrollHeight,
             behavior: "smooth",
           });
         }
-      }, 50); // Small delay to let content render
-
+      }, 50);
       return () => clearTimeout(scrollTimeout);
     } else {
-      console.log("[UI] Not scrolling as user has scrolled up", isAtBottom);
+      console.log(
+        "[UI] Not autoscrolling because autoscrollEnabledRef is false",
+        isAtBottom,
+        autoscrollEnabledRef.current
+      );
     }
   }, [messages, isAtBottom]);
-
-  // Effect to handle scroll events and track if user is at bottom
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = viewport;
-      // Consider "at bottom" if within 40px of the bottom
-      const isScrollAtBottom = scrollHeight - scrollTop - clientHeight < 40;
-
-      if (isScrollAtBottom !== isAtBottom) {
-        setIsAtBottom(isScrollAtBottom);
-      }
-    };
-
-    viewport.addEventListener("scroll", handleScroll);
-    return () => viewport.removeEventListener("scroll", handleScroll);
-  }, [isAtBottom]);
 
   // Effect to detect when actual viewport is available and attach ref
   useEffect(() => {
@@ -588,16 +607,20 @@ This will help us improve the Digital Assistant.`,
 
       // Initial scroll check
       const element = viewportRef.current as HTMLDivElement;
-      element.scrollTo({
-        top: element.scrollHeight,
-        behavior: "auto",
-      });
+      if (autoscrollEnabledRef.current) {
+        element.scrollTo({
+          top: element.scrollHeight,
+          behavior: "smooth",
+        });
+      }
 
       // Add mutation observer to detect DOM changes within messages
       const messagesContainer = viewportElement.querySelector(".space-y-4");
       if (messagesContainer) {
         const observer = new MutationObserver(() => {
-          if (isAtBottom) {
+          const { scrollTop, scrollHeight, clientHeight } = element;
+          const isScrollAtBottom = scrollHeight - scrollTop - clientHeight < 40;
+          if (isScrollAtBottom && autoscrollEnabledRef.current) {
             requestAnimationFrame(() => {
               element.scrollTo({
                 top: element.scrollHeight,
@@ -629,10 +652,12 @@ This will help us improve the Digital Assistant.`,
         );
         if (retryViewportElement) {
           viewportRef.current = retryViewportElement as HTMLDivElement;
-          retryViewportElement.scrollTo({
-            top: retryViewportElement.scrollHeight,
-            behavior: "auto",
-          });
+          if (autoscrollEnabledRef.current) {
+            retryViewportElement.scrollTo({
+              top: retryViewportElement.scrollHeight,
+              behavior: "auto",
+            });
+          }
         }
       }, 500);
 
@@ -1224,8 +1249,11 @@ This will help us improve the Digital Assistant.`,
                 </ScrollArea>
 
                 {/* Re-add scroll to bottom button, adjusted position */}
-                {!isAtBottom && (
-                  <div className="absolute bottom-[96px] left-0 w-full flex justify-center z-10">
+                {!autoscrollEnabled && (
+                  <div
+                    className="absolute left-1/2 transform -translate-x-1/2"
+                    style={{ bottom: "7.5rem", zIndex: 50 }}
+                  >
                     <Button
                       onClick={() => {
                         if (viewportRef.current) {
@@ -1233,7 +1261,12 @@ This will help us improve the Digital Assistant.`,
                             top: viewportRef.current.scrollHeight,
                             behavior: "smooth",
                           });
+
+                          // Re-enable auto-scroll and update flags
+                          autoscrollEnabledRef.current = true;
                           setIsAtBottom(true);
+                          setAutoscrollEnabled(true);
+                          userHasScrolledUpRef.current = false;
                         }
                       }}
                       className="rounded-full shadow-lg bg-mha-blue hover:bg-mha-blue-dark p-2 opacity-80 hover:opacity-100 transition-opacity"
@@ -1329,7 +1362,10 @@ This will help us improve the Digital Assistant.`,
                               <div
                                 key={index}
                                 className="p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer"
-                                onClick={() => handleSend(question.question)}
+                                onClick={() => {
+                                  autoscrollEnabledRef.current = true;
+                                  handleSend(question.question);
+                                }}
                               >
                                 <p className="font-medium text-mha-blue">
                                   {question.title}

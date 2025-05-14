@@ -1,6 +1,6 @@
 // API service for OpenAI integration
 
-import unifiedSystemPrompt from "../prompts/unified_system_prompt.md?raw";
+import rawUnifiedSystemPrompt from "../prompts/unified_system_prompt.md?raw";
 import { debug } from "./debug";
 
 // Access environment variables
@@ -131,6 +131,9 @@ async function verifyDocumentIndex() {
   }
 }
 
+// Export unifiedSystemPrompt
+export const unifiedSystemPrompt = rawUnifiedSystemPrompt;
+
 /**
  * Send a message using the OpenAI Responses API
  * @param userQuery The user's message
@@ -144,14 +147,14 @@ export async function createResponse(
   userQuery: string,
   previousResponseId?: string,
   onChunk?: (contentItem: { type: "text"; index: number; text: { value: string } }) => void,
-  instructions: string = unifiedSystemPrompt,
+  instructions: string = rawUnifiedSystemPrompt,
   signal?: AbortSignal
 ): Promise<ResponseResult> {
   debug.group('api', 'Creating new response');
   debug.log('api', `Query: "${userQuery}"`);
   debug.log('api', `Previous Response ID: ${previousResponseId || "None (new conversation)"}`);
   debug.log('api', `Streaming mode: ${onChunk ? "✅ Enabled" : "❌ Disabled"}`);
-  debug.log('api', `Using custom instructions: ${instructions !== unifiedSystemPrompt ? "✅ Yes" : "❌ No (default)"}`);
+  debug.log('api', `Using custom instructions: ${instructions !== rawUnifiedSystemPrompt ? "✅ Yes" : "❌ No (default)"}`);
   debug.log('api', `Abort signal provided: ${signal ? "✅ Yes" : "❌ No"}`);
   
   // Add debug log to verify the prompt is seeking both guides and policies
