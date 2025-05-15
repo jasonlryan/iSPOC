@@ -5,7 +5,7 @@ const {
   handleQueryLog,
   handleAdminFeedback,
   handleAdminLogs,
-} = require("./api/handlers.cjs");
+} = require("./api/handlers.js");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
