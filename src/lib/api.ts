@@ -379,6 +379,13 @@ export async function createResponse(
                   if (textValue.includes("Sources") && fullText.length > 100) {
                     console.warn("🧐 SOURCES SECTION DETECTED, checking citation format");
                     
+                    // Extract a context snippet around the Sources section
+                    const sourcesIndex = textValue.indexOf("Sources");
+                    const start = Math.max(0, sourcesIndex - 20);
+                    const end = Math.min(textValue.length, sourcesIndex + 40);
+                    const contextSnippet = textValue.substring(start, end);
+                    console.warn("📋 Sources context:", contextSnippet);
+                    
                     // Check for proper citation format in the entire text so far
                     const hasCitations = /【\d+:[^:]+:[^】]+】/.test(fullText);
                     if (!hasCitations) {

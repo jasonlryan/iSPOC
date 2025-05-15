@@ -214,10 +214,36 @@ function App() {
     // Combine both types of sources and deduplicate them
     const allSources = [...new Set([...guideSources, ...policySources])];
 
-    if (
-      allSources.length > 0 &&
-      !processed.toLowerCase().includes("**sources:**")
-    ) {
+    // More robust check for existing Sources section
+    // Check for common patterns like **Sources:**, ## Sources, Sources:, "Sources", or numbered list patterns
+    const sourcesRegex =
+      /(\*\*\s*sources\s*:?\s*\*\*|#{1,3}\s*sources\s*:?|\bsources\s*:|\n\s*sources\s*:|\"\s*sources\s*:?\"|sources\s+section:?|\d+\.\s*(📘|📜))/i;
+
+    const hasExistingSourcesSection = sourcesRegex.test(processed);
+
+    // Diagnostic logs for sources section detection
+    if (allSources.length > 0) {
+      console.log("📋 Sources found:", allSources);
+      console.log(
+        "🔍 Has existing Sources section:",
+        hasExistingSourcesSection
+      );
+      if (hasExistingSourcesSection) {
+        console.log("📝 Found existing Sources section in text");
+        // Log the matched section for debugging
+        const sourcesMatch = processed.match(
+          new RegExp(sourcesRegex.source + ".*?(?=\\n\\n|\\n$|$)", "is")
+        );
+        if (sourcesMatch) {
+          console.log(
+            "📝 Matched Sources section:",
+            sourcesMatch[0].substring(0, 100)
+          );
+        }
+      }
+    }
+
+    if (allSources.length > 0 && !hasExistingSourcesSection) {
       processed = processed.trim();
       processed += "\n\n**Sources:**\n";
       allSources.forEach((source, index) => {
