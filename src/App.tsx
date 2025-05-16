@@ -365,6 +365,12 @@ function App() {
     const message = messageToSend || input;
 
     if (message.trim() && !isLoading) {
+      // Reset autoscroll when explicitly starting a new chat with a specific message
+      // This handles starter questions and ensures we autoscroll for each new question
+      if (messageToSend) {
+        setAutoscrollEnabled(true);
+      }
+
       // First set loading state so the animation appears
       setIsLoading(true);
 
