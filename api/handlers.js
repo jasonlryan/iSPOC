@@ -295,9 +295,45 @@ async function handleAdminLogs(authHeader) {
   }
 }
 
+// Admin clear query logs handler
+async function handleClearQueryLogs(authHeader) {
+  // Check authentication
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return {
+      status: 401,
+      body: { error: "Unauthorized" },
+    };
+  }
+
+  const token = authHeader.substring(7);
+  if (token !== ADMIN_PASSWORD) {
+    return {
+      status: 401,
+      body: { error: "Invalid credentials" },
+    };
+  }
+
+  try {
+    const redis = getRedisClient();
+    await redis.del("query_log_csv_rows");
+    await redis.del("query_logs");
+    await redis.del("query_log_csv_headers");
+    return {
+      status: 200,
+      body: { success: true, message: "Query logs cleared" },
+    };
+  } catch (error) {
+    return {
+      status: 500,
+      body: { error: "Failed to clear query logs" },
+    };
+  }
+}
+
 module.exports = {
   handleFeedback,
   handleQueryLog,
   handleAdminFeedback,
   handleAdminLogs,
+  handleClearQueryLogs,
 };

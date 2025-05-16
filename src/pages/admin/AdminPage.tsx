@@ -149,6 +149,33 @@ const AdminPage: React.FC = () => {
     localStorage.removeItem("admin_authenticated");
   };
 
+  const clearQueryLogs = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/clear-logs", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ADMIN_PASSWORD}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to clear query logs");
+      }
+      // Refresh logs after clearing
+      await fetchQueryLogData();
+      alert("Query logs cleared successfully.");
+    } catch (err) {
+      setError(
+        "Failed to clear query logs: " +
+          (err instanceof Error ? err.message : String(err))
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -251,6 +278,15 @@ const AdminPage: React.FC = () => {
                 disabled={loading || queryLogData.rows.length === 0}
               >
                 Download CSV ({queryLogData.rows.length} rows)
+              </Button>
+
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={clearQueryLogs}
+                disabled={loading}
+              >
+                {loading ? "Clearing..." : "Clear Query Logs"}
               </Button>
             </div>
           </Card>

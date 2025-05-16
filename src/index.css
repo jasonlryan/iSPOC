@@ -11,10 +11,8 @@ html, body, #root {
 
 /* Target the viewport div inside our custom scroll area class */
 .chat-scroll-area > div[data-radix-scroll-area-viewport] {
-  /* Force vertical scrollbar */
-  overflow-y: scroll !important;
   /* Ensure pointer events work properly throughout the entire scroll area */
-  pointer-events: auto !important;
+  pointer-events: auto;
 }
 
 /* Fix for elements inside scroll area that might capture events */

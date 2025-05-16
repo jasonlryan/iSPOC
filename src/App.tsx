@@ -18,7 +18,7 @@ import {
   starterQuestionsPanel,
   starterQuestions,
 } from "./lib/content-config";
-import { logFeedbackToCSV } from "./lib/feedback-logger";
+import { logFeedbackToCSV, logQueryResponse } from "./lib/feedback-logger";
 import { AppLayout } from "./components/AppLayout";
 
 // Define message content structure for AI messages
@@ -35,6 +35,7 @@ interface Message {
   // For AI messages, content is an array of content items
   // For user messages, it's just a string
   content: string | TextContentItem[];
+  streaming: boolean;
 }
 
 function App() {
@@ -150,6 +151,7 @@ function App() {
           },
         },
       ],
+      streaming: true,
     },
   ]);
 
@@ -259,11 +261,87 @@ function App() {
     return processed;
   };
 
-  const autoscrollEnabledRef = useRef(true);
   const [autoscrollEnabled, setAutoscrollEnabled] = useState(true);
 
-  const handleSend = async (messageToSend?: string) => {
-    autoscrollEnabledRef.current = true;
+  // After mount, set viewportRef to the Radix viewport
+  useEffect(() => {
+    const el = document.querySelector(
+      ".chat-scroll-area [data-radix-scroll-area-viewport]"
+    );
+    if (el) viewportRef.current = el as HTMLDivElement;
+  }, []);
+
+  // 1. Detect user scrolls
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
+    // Track whether user has moved away from the bottom once
+    const leftBottomRef = { current: false } as { current: boolean };
+
+    // Handler for any user interaction
+    const disableAutoscroll = () => setAutoscrollEnabled(false);
+
+    // Handler for scroll (to show/hide button)
+    const onScroll = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+      if (!atBottom && autoscrollEnabled) {
+        // User left bottom → pause autoscroll until they return
+        setAutoscrollEnabled(false);
+        leftBottomRef.current = true;
+      }
+
+      // User has returned to bottom after leaving once → resume autoscroll automatically
+      if (atBottom && !autoscrollEnabled && leftBottomRef.current) {
+        setAutoscrollEnabled(true);
+        leftBottomRef.current = false;
+      }
+    };
+
+    el.addEventListener("pointerdown", disableAutoscroll, { passive: true });
+    el.addEventListener("touchstart", disableAutoscroll, { passive: true });
+    el.addEventListener("wheel", disableAutoscroll, { passive: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      el.removeEventListener("pointerdown", disableAutoscroll);
+      el.removeEventListener("touchstart", disableAutoscroll);
+      el.removeEventListener("wheel", disableAutoscroll);
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
+  // 2. Scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (!autoscrollEnabled) return;
+    const el = viewportRef.current;
+    if (!el) return;
+    setTimeout(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }, 30);
+  }, [messages, autoscrollEnabled]);
+
+  // 3. Scroll to bottom button handler
+  const handleScrollToBottom = () => {
+    setAutoscrollEnabled(true);
+    const el = viewportRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
+  };
+
+  // Generate / retrieve a stable session ID for logging
+  const [sessionId] = useState(() => {
+    const stored = localStorage.getItem("sessionId");
+    if (stored) return stored;
+    const id = crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+    localStorage.setItem("sessionId", id);
+    return id;
+  });
+
+  const handleNewChat = async (messageToSend?: string) => {
     const message = messageToSend || input;
 
     if (message.trim() && !isLoading) {
@@ -286,14 +364,22 @@ function App() {
       const signal = abortControllerRef.current.signal;
 
       // Add user message to the chat
-      const userMsg: Message = { type: "user", content: message };
+      const userMsg: Message = {
+        type: "user",
+        content: message,
+        streaming: false,
+      };
 
       setMessages((prev) => {
         // Add both the user message and an empty AI message placeholder at once
         return [
           ...prev,
           userMsg,
-          { type: "ai", content: [{ type: "text", text: { value: "" } }] },
+          {
+            type: "ai",
+            content: [{ type: "text", text: { value: "" } }],
+            streaming: true,
+          },
         ];
       });
 
@@ -402,20 +488,11 @@ function App() {
                                   {
                                     type: "text",
                                     text: {
-                                      value: `✅ **Thank you for your feedback!**
-
-Your responses have been recorded:
-- **Rating:** ${json.q1}
-- **Liked:** ${json.q2}
-- **Frustrated:** ${json.q3}
-- **Feature Request:** ${json.q4}
-- **Recommendation:** ${json.q5}
-- **Additional Comments:** ${json.q6}
-
-This will help us improve the Digital Assistant.`,
+                                      value: `✅ **Thank you for your feedback!**\n\nYour responses have been recorded:\n- **Rating:** ${json.q1}\n- **Liked:** ${json.q2}\n- **Frustrated:** ${json.q3}\n- **Feature Request:** ${json.q4}\n- **Recommendation:** ${json.q5}\n- **Additional Comments:** ${json.q6}\n\nThis will help us improve the Digital Assistant.`,
                                     },
                                   },
                                 ],
+                                streaming: false,
                               },
                               {
                                 type: "ai",
@@ -427,6 +504,7 @@ This will help us improve the Digital Assistant.`,
                                     },
                                   },
                                 ],
+                                streaming: false,
                               },
                             ];
                           });
@@ -446,12 +524,12 @@ This will help us improve the Digital Assistant.`,
               // Update message state - simplified
               setMessages((prevMessages) => {
                 // Clone all messages
-                const newMessages = [...prevMessages];
+                const updatedMessages1 = [...prevMessages];
 
                 // Find the last AI message
                 let lastAIIndex = -1;
-                for (let i = newMessages.length - 1; i >= 0; i--) {
-                  if (newMessages[i].type === "ai") {
+                for (let i = updatedMessages1.length - 1; i >= 0; i--) {
+                  if (updatedMessages1[i].type === "ai") {
                     lastAIIndex = i;
                     break;
                   }
@@ -464,7 +542,7 @@ This will help us improve the Digital Assistant.`,
                 }
 
                 // Get current content array
-                const message = newMessages[lastAIIndex];
+                const message = updatedMessages1[lastAIIndex];
                 let content = [
                   ...((message.content as TextContentItem[]) || []),
                 ];
@@ -498,12 +576,33 @@ This will help us improve the Digital Assistant.`,
                 }
 
                 // Create new message with updated content
-                newMessages[lastAIIndex] = {
+                const updatedMessage = {
                   ...message,
                   content,
                 };
 
-                return newMessages;
+                // When updating the last AI message, always preserve or set streaming property
+                const updatedContent =
+                  updatedMessage.content as TextContentItem[];
+                const updatedContent1 = updatedContent.map((item, i) => {
+                  if (i === updatedContent.length - 1) {
+                    return { ...item, streaming: updatedMessage.streaming };
+                  }
+                  return item;
+                });
+
+                const updatedMessages2 = updatedMessages1.map((msg, i) => {
+                  if (i === updatedMessages1.length - 1 && msg.type === "ai") {
+                    return {
+                      ...msg,
+                      content: updatedContent1,
+                      streaming: updatedMessage.streaming,
+                    };
+                  }
+                  return msg;
+                });
+
+                return updatedMessages2;
               });
             },
             mode === "feedback" ? feedbackPrompt : unifiedSystemPrompt,
@@ -513,11 +612,27 @@ This will help us improve the Digital Assistant.`,
         // Store the response ID for multi-turn conversation
         if (responseResult.id) {
           setPreviousResponseId(responseResult.id);
-        } else {
-          console.warn(
-            "No response ID received, multi-turn conversation may not work"
-          );
         }
+
+        // Mark streaming complete on the final AI message
+        setMessages((prev) => {
+          const updated = [...prev];
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].type === "ai") {
+              updated[i] = { ...updated[i], streaming: false } as Message;
+              break;
+            }
+          }
+          return updated;
+        });
+
+        // Log the full query/response pair now that streaming is finished
+        await logQueryResponse(
+          message,
+          responseResult.text,
+          "anonymous",
+          sessionId
+        );
       } catch (error) {
         // Check if this was aborted on purpose
         if (error instanceof Error && error.name === "AbortError") {
@@ -557,301 +672,344 @@ This will help us improve the Digital Assistant.`,
         setIsLoading(false);
       }
     } else {
-      console.warn("handleSend skipped: Input empty or already loading");
+      console.warn("handleNewChat skipped: Input empty or already loading");
     }
   };
 
-  // Add a new state for userHasScrolledUp
-  const userHasScrolledUpRef = useRef(false);
+  const startFeedback = async (messageToSend?: string) => {
+    const message = messageToSend || input;
 
-  // Bulletproof autoscroll interruption: add all relevant event listeners
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
+    if (message.trim() && !isLoading) {
+      // First set loading state so the animation appears
+      setIsLoading(true);
 
-    const onUserScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = viewport;
-      const atBottom = scrollHeight - (scrollTop + clientHeight) < 40; // 40-px tolerance
-
-      setIsAtBottom(atBottom);
-
-      // Sync autoscroll state
-      autoscrollEnabledRef.current = atBottom;
-      setAutoscrollEnabled(atBottom);
-    };
-
-    // Pointer & wheel merely initiate scroll; rely on scroll handler to compute position.
-    viewport.addEventListener("scroll", onUserScroll, { passive: true });
-    viewport.addEventListener("pointerdown", onUserScroll, { passive: true });
-    viewport.addEventListener("touchstart", onUserScroll, { passive: true });
-    viewport.addEventListener("wheel", onUserScroll, { passive: true });
-
-    return () => {
-      viewport.removeEventListener("scroll", onUserScroll);
-      viewport.removeEventListener("pointerdown", onUserScroll);
-      viewport.removeEventListener("touchstart", onUserScroll);
-      viewport.removeEventListener("wheel", onUserScroll);
-    };
-  }, []);
-
-  // Effect to scroll to bottom automatically when messages change
-  useEffect(() => {
-    if ((autoscrollEnabledRef.current && isAtBottom) || messages.length <= 1) {
-      const scrollTimeout = setTimeout(() => {
-        if (autoscrollEnabledRef.current && viewportRef.current) {
-          viewportRef.current.scrollTo({
-            top: viewportRef.current.scrollHeight,
-            behavior: "smooth",
-          });
-        }
-      }, 50);
-      return () => clearTimeout(scrollTimeout);
-    } else {
-      console.log(
-        "[UI] Not autoscrolling because autoscrollEnabledRef is false",
-        isAtBottom,
-        autoscrollEnabledRef.current
-      );
-    }
-  }, [messages, isAtBottom]);
-
-  // Effect to detect when actual viewport is available and attach ref
-  useEffect(() => {
-    // Find the viewport element inside our ScrollArea after components mount
-    const viewportElement = document.querySelector(
-      ".chat-scroll-area [data-radix-scroll-area-viewport]"
-    );
-
-    console.log(
-      "[SCROLL DEBUG] Initial attempt. viewportElement:",
-      viewportElement
-    );
-
-    if (viewportElement) {
-      // Store reference to the actual viewport element
-      viewportRef.current = viewportElement as HTMLDivElement;
-
-      // Initial scroll check
-      const element = viewportRef.current as HTMLDivElement;
-      if (autoscrollEnabledRef.current) {
-        element.scrollTo({
-          top: element.scrollHeight,
-          behavior: "smooth",
-        });
+      // Clear input field if using the input box
+      if (!messageToSend) {
+        setInput("");
       }
 
-      // Add mutation observer to detect DOM changes within messages
-      const messagesContainer = viewportElement.querySelector(".space-y-4");
-      if (messagesContainer) {
-        const observer = new MutationObserver(() => {
-          const { scrollTop, scrollHeight, clientHeight } = element;
-          const isScrollAtBottom = scrollHeight - scrollTop - clientHeight < 40;
-          if (isScrollAtBottom && autoscrollEnabledRef.current) {
-            requestAnimationFrame(() => {
-              element.scrollTo({
-                top: element.scrollHeight,
-                behavior: "smooth",
-              });
-            });
-          }
-        });
+      // Clear any previous errors
+      setError(null);
 
-        observer.observe(messagesContainer, {
-          childList: true,
-          subtree: true,
-          characterData: true,
-          characterDataOldValue: true,
-        });
-
-        // Cleanup observer on unmount
-        return () => observer.disconnect();
+      // Create a new AbortController for this request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-    } else {
-      // Set up a retry mechanism
-      const retryTimeout = setTimeout(() => {
-        const retryViewportElement = document.querySelector(
-          ".chat-scroll-area [data-radix-scroll-area-viewport]"
-        );
-        console.log(
-          "[SCROLL DEBUG] Retry attempt. retryViewportElement:",
-          retryViewportElement
-        );
-        if (retryViewportElement) {
-          viewportRef.current = retryViewportElement as HTMLDivElement;
-          if (autoscrollEnabledRef.current) {
-            retryViewportElement.scrollTo({
-              top: retryViewportElement.scrollHeight,
-              behavior: "auto",
-            });
-          }
-        }
-      }, 500);
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
 
-      return () => clearTimeout(retryTimeout);
-    }
-  }, [isAtBottom]);
+      // Add user message to the chat
+      const userMsg: Message = {
+        type: "user",
+        content: message,
+        streaming: false,
+      };
 
-  // Handle creating a new chat
-  const handleNewChat = () => {
-    // 1. Abort any ongoing API requests
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-
-    // 1. Stop any current streaming response
-    setIsLoading(false);
-
-    // 2. Reset messages to just the welcome message
-    setMessages([
-      {
-        type: "ai",
-        content: [
+      setMessages((prev) => {
+        // Add both the user message and an empty AI message placeholder at once
+        return [
+          ...prev,
+          userMsg,
           {
-            type: "text",
-            text: {
-              value:
-                "Hello! I'm your iSPoC Digital Assistant. How can I help you today?",
-            },
+            type: "ai",
+            content: [{ type: "text", text: { value: "" } }],
+            streaming: true,
           },
-        ],
-      },
-    ]);
+        ];
+      });
 
-    // 3. Clear input field
-    setInput("");
+      try {
+        // Use createResponse for the Responses API with streaming enabled
+        const responseResult: { text: string; id?: string } =
+          await createResponse(
+            message,
+            previousResponseId,
+            (contentItem) => {
+              // CRITICAL: First log at the very top to confirm we received the chunk
+              console.log("UI chunk received:", contentItem);
 
-    // 4. Reset error state
-    setError(null);
-
-    // Reset to policy mode if we were in feedback mode
-    if (mode === "feedback") {
-      setMode("policy");
-      setFeedbackAnswers(null);
-      feedbackThankYouShown.current = false; // Reset the ref
-    }
-  };
-
-  // Function to start the feedback survey per original instructions
-  const startFeedback = () => {
-    // Reset state but don't use handleNewChat to avoid showing welcome message
-    setIsLoading(false);
-    setInput("");
-    setError(null);
-    setPreviousResponseId(undefined);
-    setFeedbackAnswers(null);
-
-    // Switch to feedback mode
-    setMode("feedback");
-
-    // Initialize with a thank you message instead of the standard welcome
-    setMessages([
-      {
-        type: "ai",
-        content: [
-          {
-            type: "text",
-            text: {
-              value:
-                "Thank you for taking this survey. Click the button below to begin.",
-            },
-          },
-        ],
-      },
-    ]);
-  };
-
-  // Update the useEffect hook for feedbackAnswers to use the simplified logger
-  useEffect(() => {
-    if (feedbackAnswers) {
-      console.log("📊 Feedback state updated:", feedbackAnswers);
-
-      if (!feedbackThankYouShown.current) {
-        console.log("📊 First time seeing feedback, should show thank you");
-
-        // Log the feedback using the simplified logger
-        const logResult = logFeedbackToCSV(feedbackAnswers);
-        console.log(
-          `📊 Feedback logging ${logResult ? "successful" : "failed"}`
-        );
-
-        // After receiving feedback, show a proper thank you message with return button
-        setTimeout(() => {
-          // Create a formatted thank you message with the feedback data
-          const thankYouMessage = {
-            type: "ai" as const,
-            content: [
-              {
-                type: "text" as const,
-                text: {
-                  value: `✅ **Thank you for your feedback!**
-
-Your responses have been recorded:
-- **Rating:** ${feedbackAnswers.q1}
-- **Liked:** ${feedbackAnswers.q2}
-- **Frustrated:** ${feedbackAnswers.q3}
-- **Feature Request:** ${feedbackAnswers.q4}
-- **Recommendation:** ${feedbackAnswers.q5}
-- **Additional Comments:** ${feedbackAnswers.q6}
-
-This will help us improve the Digital Assistant.`,
-                },
-              },
-            ],
-          };
-
-          // Create a separate message just for the return button
-          const returnButtonMessage = {
-            type: "ai" as const,
-            content: [
-              {
-                type: "text" as const,
-                text: {
-                  value: "returnButton",
-                },
-              },
-            ],
-          };
-
-          // Update messages, filter out any JSON response
-          setMessages((prev) => {
-            // Keep all messages except any potential raw JSON
-            const filteredMessages = prev.filter((msg) => {
-              // Skip messages that appear to contain JSON
+              // Basic validation
               if (
-                msg.type === "ai" &&
-                Array.isArray(msg.content) &&
-                msg.content.length === 1 &&
-                msg.content[0].type === "text" &&
-                typeof msg.content[0].text?.value === "string" &&
-                msg.content[0].text.value.trim().startsWith("{") &&
-                msg.content[0].text.value.trim().endsWith("}")
+                !contentItem ||
+                contentItem.type !== "text" ||
+                !contentItem.text?.value
               ) {
-                return false;
+                console.error("🔴 INVALID CHUNK:", contentItem);
+                return;
               }
-              return true;
-            });
 
-            // Add thank you message and return button
-            return [...filteredMessages, thankYouMessage, returnButtonMessage];
-          });
-        }, 1000);
-      } else {
-        console.log("📊 Already showed thank you for feedback");
+              const textValue = contentItem.text.value;
+              const index = contentItem.index || 0;
+
+              console.warn(
+                `🟢 CHUNK TEXT [${index}]: "${textValue.substring(
+                  0,
+                  20
+                )}..." (${textValue.length} chars)`
+              );
+
+              // Special handling for JSON in feedback mode
+              if (mode === "feedback" && textValue.includes("}")) {
+                try {
+                  // Look for complete JSON object
+                  console.log("⚙️ Looking for JSON in:", textValue);
+
+                  // Try to find any JSON object in the text
+                  const match = textValue.match(/\{[\s\S]*\}/);
+                  if (match) {
+                    const jsonText = match[0];
+                    console.log("⚙️ Found JSON text:", jsonText);
+
+                    try {
+                      const json = JSON.parse(jsonText);
+                      console.log("⚙️ Parsed JSON:", json);
+
+                      // More thorough validation
+                      const hasAllRequiredFields =
+                        typeof json === "object" &&
+                        json !== null &&
+                        "q1" in json &&
+                        "q2" in json &&
+                        "q3" in json &&
+                        "q4" in json &&
+                        "q5" in json &&
+                        "q6" in json;
+
+                      // Check if values are non-empty
+                      const hasValidValues =
+                        hasAllRequiredFields &&
+                        json.q1 &&
+                        json.q2 &&
+                        json.q3 &&
+                        json.q4 &&
+                        json.q5;
+
+                      console.log("⚙️ JSON validation:", {
+                        hasAllRequiredFields,
+                        hasValidValues,
+                        feedbackThankYouAlreadyShown:
+                          feedbackThankYouShown.current,
+                      });
+
+                      // Check if we have all 5 answers with valid values and haven't shown the thank you yet
+                      if (hasValidValues && !feedbackThankYouShown.current) {
+                        console.log("⚙️ Feedback answers complete:", json);
+
+                        // Store the feedback answers and set shown flag immediately to prevent duplicates
+                        setFeedbackAnswers(json);
+                        feedbackThankYouShown.current = true;
+
+                        // Create a direct replace of all messages to ensure proper rendering
+                        setTimeout(() => {
+                          console.log(
+                            "⚙️ Adding feedback summary and return button"
+                          );
+
+                          // Get messages without the JSON result and add two new messages
+                          setMessages((prev) => {
+                            // Keep all messages except the JSON message
+                            const messagesWithoutJson = prev.filter(
+                              (_, i) => i !== prev.length - 1
+                            );
+
+                            // Clear the previous response ID to avoid continuing the conversation
+                            setPreviousResponseId(undefined);
+
+                            return [
+                              ...messagesWithoutJson,
+                              {
+                                type: "ai",
+                                content: [
+                                  {
+                                    type: "text",
+                                    text: {
+                                      value: `✅ **Thank you for your feedback!**\n\nYour responses have been recorded:\n- **Rating:** ${json.q1}\n- **Liked:** ${json.q2}\n- **Frustrated:** ${json.q3}\n- **Feature Request:** ${json.q4}\n- **Recommendation:** ${json.q5}\n- **Additional Comments:** ${json.q6}\n\nThis will help us improve the Digital Assistant.`,
+                                    },
+                                  },
+                                ],
+                                streaming: false,
+                              },
+                              {
+                                type: "ai",
+                                content: [
+                                  {
+                                    type: "text",
+                                    text: {
+                                      value: "returnButton",
+                                    },
+                                  },
+                                ],
+                                streaming: false,
+                              },
+                            ];
+                          });
+                        }, 1000);
+                      }
+                    } catch (err) {
+                      // Not valid JSON yet
+                      console.log("JSON not yet complete", err);
+                    }
+                  }
+                } catch (err) {
+                  // Not valid JSON yet
+                  console.log("JSON not yet complete", err);
+                }
+              }
+
+              // Update message state - simplified
+              setMessages((prevMessages) => {
+                // Clone all messages
+                const updatedMessages1 = [...prevMessages];
+
+                // Find the last AI message
+                let lastAIIndex = -1;
+                for (let i = updatedMessages1.length - 1; i >= 0; i--) {
+                  if (updatedMessages1[i].type === "ai") {
+                    lastAIIndex = i;
+                    break;
+                  }
+                }
+
+                // If no AI message found, something is wrong
+                if (lastAIIndex === -1) {
+                  console.error("No AI message found to update");
+                  return prevMessages;
+                }
+
+                // Get current content array
+                const message = updatedMessages1[lastAIIndex];
+                let content = [
+                  ...((message.content as TextContentItem[]) || []),
+                ];
+
+                // Initialize content if needed
+                if (content.length === 0) {
+                  content = [{ type: "text", text: { value: "" } }];
+                }
+
+                // Make sure index exists in array
+                while (content.length <= index) {
+                  content.push({ type: "text", text: { value: "" } });
+                }
+
+                // Update the content at index
+                const currentText = content[index].text?.value || "";
+                content[index] = {
+                  ...content[index],
+                  text: { value: currentText + textValue },
+                };
+
+                console.log(
+                  `UI updated message: ${currentText.length} => ${
+                    currentText.length + textValue.length
+                  }`
+                );
+
+                // If this is an error message (starts with ⚠️), stop the loading state
+                if (textValue.startsWith("⚠️")) {
+                  setIsLoading(false);
+                }
+
+                // Create new message with updated content
+                const updatedMessage = {
+                  ...message,
+                  content,
+                };
+
+                // When updating the last AI message, always preserve or set streaming property
+                const updatedContent =
+                  updatedMessage.content as TextContentItem[];
+                const updatedContent1 = updatedContent.map((item, i) => {
+                  if (i === updatedContent.length - 1) {
+                    return { ...item, streaming: updatedMessage.streaming };
+                  }
+                  return item;
+                });
+
+                const updatedMessages2 = updatedMessages1.map((msg, i) => {
+                  if (i === updatedMessages1.length - 1 && msg.type === "ai") {
+                    return {
+                      ...msg,
+                      content: updatedContent1,
+                      streaming: updatedMessage.streaming,
+                    };
+                  }
+                  return msg;
+                });
+
+                return updatedMessages2;
+              });
+            },
+            mode === "feedback" ? feedbackPrompt : unifiedSystemPrompt,
+            signal
+          );
+
+        // Store the response ID for multi-turn conversation
+        if (responseResult.id) {
+          setPreviousResponseId(responseResult.id);
+        }
+
+        // Mark streaming complete on the final AI message
+        setMessages((prev) => {
+          const updated = [...prev];
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].type === "ai") {
+              updated[i] = { ...updated[i], streaming: false } as Message;
+              break;
+            }
+          }
+          return updated;
+        });
+
+        // Log the full query/response pair now that streaming is finished
+        await logQueryResponse(
+          message,
+          responseResult.text,
+          "anonymous",
+          sessionId
+        );
+      } catch (error) {
+        // Check if this was aborted on purpose
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Error getting response from createResponse:", error);
+        setError("Failed to get a response. Please try again.");
+
+        // Update the AI message with an error
+        setMessages((prev) => {
+          const updatedMessages = [...prev];
+
+          // Find the last AI message
+          let lastAIIndex = -1;
+          for (let i = updatedMessages.length - 1; i >= 0; i--) {
+            if (updatedMessages[i].type === "ai") {
+              lastAIIndex = i;
+              break;
+            }
+          }
+
+          if (lastAIIndex >= 0) {
+            updatedMessages[lastAIIndex].content = [
+              {
+                type: "text",
+                text: {
+                  value:
+                    "Sorry, there was an error processing your request. Please try again later.",
+                },
+              },
+            ];
+          }
+          return updatedMessages;
+        });
+      } finally {
+        setIsLoading(false);
       }
+    } else {
+      console.warn("startFeedback skipped: Input empty or already loading");
     }
-  }, [feedbackAnswers]);
-
-  // Add effect to focus input when message loading completes
-  useEffect(() => {
-    // Focus the input field when loading stops
-    if (!isLoading && inputRef.current) {
-      // Brief timeout to ensure UI is fully updated
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-    }
-  }, [isLoading]);
+  };
 
   // Add console log to check panel order and content at the beginning of the render function
   // Just before the return statement in the App component
@@ -871,7 +1029,7 @@ This will help us improve the Digital Assistant.`,
         panelOrder={panelOrder}
         contentPanels={contentPanels}
         starterQuestions={starterQuestions}
-        handleSend={handleSend}
+        handleSend={handleNewChat}
         startFeedback={startFeedback}
         mobileAboutExpanded={mobileAboutExpanded}
         setMobileAboutExpanded={setMobileAboutExpanded}
@@ -933,7 +1091,7 @@ This will help us improve the Digital Assistant.`,
                                 : "text-mha-blue" // Blue text for policies
                             } hover:bg-gray-100 font-medium px-4 py-2`
                       }
-                      onClick={handleNewChat}
+                      onClick={() => handleNewChat()}
                     >
                       <MessageSquare
                         className={`h-4 w-4 mr-2 ${
@@ -1234,7 +1392,7 @@ This will help us improve the Digital Assistant.`,
                                   className="bg-mha-pink hover:bg-mha-pink-dark text-white"
                                   onClick={() => {
                                     // Send message to start the survey
-                                    handleSend("start");
+                                    handleNewChat("start");
                                   }}
                                 >
                                   Let's start the survey!
@@ -1268,6 +1426,75 @@ This will help us improve the Digital Assistant.`,
                           >
                             {messageContentElement}
                           </Card>
+                          {/* Only show sources at the end of the last AI message and only if not loading */}
+                          {message.type === "ai" &&
+                            index === messages.length - 1 &&
+                            !isLoading &&
+                            message.streaming === false &&
+                            (() => {
+                              // Extract sources as before
+                              const aiContent =
+                                message.content as TextContentItem[];
+                              const combinedText = aiContent
+                                .map((item) =>
+                                  item.type === "text" &&
+                                  item.text &&
+                                  typeof item.text.value === "string"
+                                    ? item.text.value
+                                    : ""
+                                )
+                                .join("\n");
+                              let guideSources: string[] = [];
+                              const guideSourcePattern = /【\d+:([^】]+)】/g;
+                              let match;
+                              while (
+                                (match =
+                                  guideSourcePattern.exec(combinedText)) !==
+                                null
+                              ) {
+                                const sourceName = match[1].replace(
+                                  /\.(json|md|txt)$/i,
+                                  ""
+                                );
+                                if (!guideSources.includes(sourceName)) {
+                                  guideSources.push(sourceName);
+                                }
+                              }
+                              const policySourcePattern =
+                                /\[(\d+):(\d+)[*†]([^\]]+)\]/g;
+                              const sourcesSet = new Set<string>();
+                              while (
+                                (match =
+                                  policySourcePattern.exec(combinedText)) !==
+                                null
+                              ) {
+                                if (match[3]) {
+                                  const sourceName = match[3]
+                                    .trim()
+                                    .replace(/\.(json|md|txt)$/i, "");
+                                  sourcesSet.add(sourceName);
+                                }
+                              }
+                              const policySources = Array.from(sourcesSet);
+                              const allSources = [
+                                ...new Set([...guideSources, ...policySources]),
+                              ];
+                              if (allSources.length > 0) {
+                                return (
+                                  <div className="mt-4 text-xs text-gray-500 border-t pt-2">
+                                    <div className="font-semibold mb-1">
+                                      Sources
+                                    </div>
+                                    <ol className="list-decimal pl-4">
+                                      {allSources.map((source, i) => (
+                                        <li key={i}>{source}</li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                         </div>
                       );
                     })}
@@ -1281,20 +1508,7 @@ This will help us improve the Digital Assistant.`,
                     style={{ bottom: "7.5rem", zIndex: 50 }}
                   >
                     <Button
-                      onClick={() => {
-                        if (viewportRef.current) {
-                          viewportRef.current.scrollTo({
-                            top: viewportRef.current.scrollHeight,
-                            behavior: "smooth",
-                          });
-
-                          // Re-enable auto-scroll and update flags
-                          autoscrollEnabledRef.current = true;
-                          setIsAtBottom(true);
-                          setAutoscrollEnabled(true);
-                          userHasScrolledUpRef.current = false;
-                        }
-                      }}
+                      onClick={handleScrollToBottom}
                       className="rounded-full shadow-lg bg-mha-blue hover:bg-mha-blue-dark p-2 opacity-80 hover:opacity-100 transition-opacity"
                       aria-label="Scroll to bottom"
                     >
@@ -1323,7 +1537,7 @@ This will help us improve the Digital Assistant.`,
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        handleSend();
+                        handleNewChat();
                       }
                     }}
                     placeholder="Type your message... (Shift+Enter for new line)"
@@ -1332,7 +1546,7 @@ This will help us improve the Digital Assistant.`,
                     style={{ height: autoHeight, maxHeight: "30vh" }}
                   />
                   <Button
-                    onClick={() => handleSend()}
+                    onClick={() => handleNewChat()}
                     disabled={isLoading}
                     className="bg-mha-pink hover:bg-mha-pink-dark"
                   >
@@ -1389,8 +1603,7 @@ This will help us improve the Digital Assistant.`,
                                 key={index}
                                 className="p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer"
                                 onClick={() => {
-                                  autoscrollEnabledRef.current = true;
-                                  handleSend(question.question);
+                                  handleNewChat(question.question);
                                 }}
                               >
                                 <p className="font-medium text-mha-blue">
@@ -1468,7 +1681,7 @@ This will help us improve the Digital Assistant.`,
                             <div className="mt-4">
                               <Button
                                 className="w-full bg-mha-pink hover:bg-mha-pink-dark text-white"
-                                onClick={startFeedback}
+                                onClick={() => startFeedback()}
                               >
                                 <MessageSquarePlus className="h-4 w-4 mr-2" />
                                 Give Feedback
