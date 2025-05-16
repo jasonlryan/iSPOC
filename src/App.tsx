@@ -62,6 +62,10 @@ function App() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   // Ref for the input element
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  // Ref to track if scrolling is from a user action vs browser/programmatic
+  const isUserScrollingRef = useRef(false);
+  // Ref for the scroll timeout to reset isUserScrolling flag
+  const scrollTimeoutRef = useRef<number | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [autoHeight, setAutoHeight] = useState("5rem");
 
@@ -280,10 +284,26 @@ function App() {
     const leftBottomRef = { current: false } as { current: boolean };
 
     // Handler for any user interaction
-    const disableAutoscroll = () => setAutoscrollEnabled(false);
+    const disableAutoscroll = () => {
+      // Set flag that user is scrolling - this distinguishes user actions from browser adjustments
+      isUserScrollingRef.current = true;
+
+      // Reset the flag after a delay
+      if (scrollTimeoutRef.current)
+        window.clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        isUserScrollingRef.current = false;
+      }, 1500);
+
+      setAutoscrollEnabled(false);
+    };
 
     // Handler for scroll (to show/hide button)
     const onScroll = () => {
+      // Only process scroll events triggered by actual user interaction
+      // This prevents browser scroll adjustments from disabling autoscroll
+      if (!isUserScrollingRef.current) return;
+
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
       if (!atBottom && autoscrollEnabled) {
         // User left bottom → pause autoscroll until they return
