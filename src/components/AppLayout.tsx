@@ -260,7 +260,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                         <div className="mt-4">
                           <Button
                             className="w-full bg-mha-pink hover:bg-mha-pink-dark text-white"
-                            onClick={startFeedback}
+                            onClick={() => startFeedback()}
                           >
                             <MessageSquarePlus className="h-4 w-4 mr-2" />
                             Give Feedback

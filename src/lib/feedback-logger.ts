@@ -6,13 +6,12 @@ export interface FeedbackData {
   q2: string; // Liked
   q3: string; // Frustrated
   q4: string; // Feature Request
-  q5: string; // Recommendation
-  q6: string; // Additional comments
+  q5: string; // Additional comments
 }
 
 /**
  * Logs feedback survey results to localStorage and to Vercel serverless function
- * @param feedback The feedback data containing q1-q6 answers
+ * @param feedback The feedback data containing q1-q5 answers
  * @returns True if logging was successful
  */
 export function logFeedbackToCSV(feedback: FeedbackData): boolean {
@@ -36,7 +35,7 @@ export function logFeedbackToCSV(feedback: FeedbackData): boolean {
     debug.log('feedback', 'Successfully saved feedback to localStorage');
     
     // Create a mock CSV line for debugging
-    const csvLine = `${timestampedFeedback.timestamp},${feedback.q1},${feedback.q2},${feedback.q3},${feedback.q4},${feedback.q5},${feedback.q6}`;
+    const csvLine = `${timestampedFeedback.timestamp},${feedback.q1},${feedback.q2},${feedback.q3},${feedback.q4},${feedback.q5}`;
     console.log('CSV line that would be created:', csvLine);
     
     // Send feedback to Vercel serverless function

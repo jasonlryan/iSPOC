@@ -69,6 +69,9 @@ function App() {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [autoHeight, setAutoHeight] = useState("5rem");
 
+  // Ref to maintain running question number in feedback mode
+  const feedbackQCounter = useRef(0);
+
   // Markdown components: ABSOLUTELY BASIC - No cleaning, just render children
   const markdownComponents = {
     p: ({ children }: any) => {
@@ -350,8 +353,8 @@ function App() {
     }
   };
 
-  // Generate / retrieve a stable session ID for logging
-  const [sessionId] = useState(() => {
+  // Session ID: stable for normal chats, regenerated each time a new feedback survey is launched
+  const [sessionId, setSessionId] = useState(() => {
     const stored = localStorage.getItem("sessionId");
     if (stored) return stored;
     const id = crypto.randomUUID
@@ -360,6 +363,9 @@ function App() {
     localStorage.setItem("sessionId", id);
     return id;
   });
+
+  // Add a ref to store the original session ID before switching to feedback mode
+  const originalSessionIdRef = useRef<string | null>(null);
 
   const handleNewChat = async (messageToSend?: string) => {
     const message = messageToSend || input;
@@ -397,9 +403,21 @@ function App() {
       };
 
       setMessages((prev) => {
+        // If we're in feedback mode and the very first message was just a blank welcome card,
+        // drop it once the user presses Start so the placeholder "..." disappears.
+        const trimmedPrev =
+          mode === "feedback" &&
+          prev.length === 1 &&
+          prev[0].type === "ai" &&
+          Array.isArray(prev[0].content) &&
+          prev[0].content.length === 1 &&
+          (prev[0].content[0] as any).text?.value === ""
+            ? []
+            : prev;
+
         // Add both the user message and an empty AI message placeholder at once
         return [
-          ...prev,
+          ...trimmedPrev,
           userMsg,
           {
             type: "ai",
@@ -463,8 +481,7 @@ function App() {
                         "q2" in json &&
                         "q3" in json &&
                         "q4" in json &&
-                        "q5" in json &&
-                        "q6" in json;
+                        "q5" in json;
 
                       // Check if values are non-empty
                       const hasValidValues =
@@ -490,6 +507,10 @@ function App() {
                         setFeedbackAnswers(json);
                         feedbackThankYouShown.current = true;
 
+                        // Log the feedback to CSV and Redis
+                        const logResult = logFeedbackToCSV(json);
+                        console.log("📊 Feedback logged to CSV:", logResult);
+
                         // Create a direct replace of all messages to ensure proper rendering
                         setTimeout(() => {
                           console.log(
@@ -514,7 +535,7 @@ function App() {
                                   {
                                     type: "text",
                                     text: {
-                                      value: `✅ **Thank you for your feedback!**\n\nYour responses have been recorded:\n- **Rating:** ${json.q1}\n- **Liked:** ${json.q2}\n- **Frustrated:** ${json.q3}\n- **Feature Request:** ${json.q4}\n- **Recommendation:** ${json.q5}\n- **Additional Comments:** ${json.q6}\n\nThis will help us improve the Digital Assistant.`,
+                                      value: `✅ **Thank you for your feedback!**\n\nYour responses have been recorded:\n- **Rating:** ${json.q1}\n- **Liked:** ${json.q2}\n- **Frustrated:** ${json.q3}\n- **Feature Request:** ${json.q4}\n- **Additional Comments:** ${json.q5}\n\nThis will help us improve the Digital Assistant.`,
                                     },
                                   },
                                 ],
@@ -583,21 +604,98 @@ function App() {
                   content.push({ type: "text", text: { value: "" } });
                 }
 
-                // Update the content at index
+                // Update the content at index — more aggressive check for duplicates
                 const currentText = content[index].text?.value || "";
+                let newValue: string;
+
+                // In feedback mode, we need very aggressive duplicate prevention
+                if (mode === "feedback") {
+                  // Known problematic questions to check for
+                  const questionPatterns = [
+                    /One feature you\'d love to see\?/i,
+                    /What did you like most\?/i,
+                    /What frustrated you\?/i,
+                    /Do you have anything else to add\?/i,
+                  ];
+
+                  // First check if this is a complete question
+                  const isCompleteQuestion = textValue.includes("?");
+
+                  // Check if any of our known patterns are in the new text
+                  const containsKnownPattern = questionPatterns.some(
+                    (pattern) => pattern.test(textValue)
+                  );
+
+                  // Check if current text already contains a question and new text is duplicating
+                  const isDuplicating =
+                    currentText.includes("?") &&
+                    (textValue.includes(
+                      currentText.substring(0, Math.min(currentText.length, 15))
+                    ) ||
+                      currentText.includes(
+                        textValue.substring(0, Math.min(textValue.length, 15))
+                      ));
+
+                  // Special check for single character "?" that sometimes appears - always replace it with full text
+                  if (
+                    currentText === "?" ||
+                    (textValue.length > 1 && currentText.trim() === "?")
+                  ) {
+                    console.log(
+                      "🔍 Detected isolated '?' - replacing with full text"
+                    );
+                    newValue = textValue;
+                  }
+                  // With a complete question or a potential duplicate, always prefer the new text
+                  else if (
+                    isCompleteQuestion &&
+                    (containsKnownPattern || isDuplicating)
+                  ) {
+                    // With a complete question or a potential duplicate, always prefer the new text
+                    newValue = textValue;
+
+                    // Remove any duplicated sentences
+                    const sentences = newValue.split(/(\?)/g).filter(Boolean);
+                    const uniqueSentences = [];
+                    const seen = new Set();
+
+                    for (let i = 0; i < sentences.length; i += 2) {
+                      const sentence = (
+                        sentences[i] + (sentences[i + 1] || "")
+                      ).trim();
+                      if (sentence && !seen.has(sentence.toLowerCase())) {
+                        seen.add(sentence.toLowerCase());
+                        uniqueSentences.push(sentence);
+                      }
+                    }
+
+                    newValue = uniqueSentences.join(" ");
+                  } else {
+                    // For small incremental chunks without duplicates
+                    newValue = currentText + textValue;
+                  }
+                } else {
+                  // Regular non-feedback handling
+                  if (textValue.startsWith(currentText)) {
+                    // New chunk contains the full text so far (cumulative) — replace
+                    newValue = textValue;
+                  } else {
+                    // Fallback: append incremental delta
+                    newValue = currentText + textValue;
+                  }
+                }
+
                 content[index] = {
                   ...content[index],
-                  text: { value: currentText + textValue },
+                  text: { value: newValue },
                 };
 
                 console.log(
-                  `UI updated message: ${currentText.length} => ${
-                    currentText.length + textValue.length
-                  }`
+                  `UI updated message: ${currentText.length} => ${newValue.length}`
                 );
 
                 // If this is an error message (starts with ⚠️), stop the loading state
-                if (textValue.startsWith("⚠️")) {
+                if (newValue.startsWith("⚠️")) {
                   setIsLoading(false);
                 }
 
@@ -696,6 +794,10 @@ function App() {
         });
       } finally {
         setIsLoading(false);
+        // Focus input after message is processed
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 100);
       }
     } else {
       console.warn("handleNewChat skipped: Input empty or already loading");
@@ -703,6 +805,46 @@ function App() {
   };
 
   const startFeedback = async (messageToSend?: string) => {
+    // ---- 0. SPECIAL CASE: User clicked "Give Feedback" (no message passed) ----
+    if (!messageToSend) {
+      // Store the current session ID before generating a new one for the survey
+      originalSessionIdRef.current = sessionId;
+
+      // Generate a brand-new session id for this survey run (do NOT store in localStorage)
+      const newId = crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+      setSessionId(newId);
+
+      // Reset UI to a single assistant welcome message. Blank screen + Start button will render
+      setMessages([
+        {
+          type: "ai",
+          content: [
+            {
+              type: "text",
+              text: {
+                value: "", // No extra intro text; Start Survey button will appear below
+              },
+            },
+          ],
+          streaming: false,
+        },
+      ]);
+
+      // Flip into feedback mode & reset relevant state
+      setMode("feedback");
+      setPreviousResponseId(undefined);
+      setFeedbackAnswers(null);
+      feedbackThankYouShown.current = false;
+      setIsLoading(false);
+      setError(null);
+      setAutoscrollEnabled(true);
+      feedbackQCounter.current = 0;
+
+      return; // nothing more to do until user presses "Start Survey"
+    }
+
     const message = messageToSend || input;
 
     if (message.trim() && !isLoading) {
@@ -798,8 +940,7 @@ function App() {
                         "q2" in json &&
                         "q3" in json &&
                         "q4" in json &&
-                        "q5" in json &&
-                        "q6" in json;
+                        "q5" in json;
 
                       // Check if values are non-empty
                       const hasValidValues =
@@ -825,6 +966,10 @@ function App() {
                         setFeedbackAnswers(json);
                         feedbackThankYouShown.current = true;
 
+                        // Log the feedback to CSV and Redis
+                        const logResult = logFeedbackToCSV(json);
+                        console.log("📊 Feedback logged to CSV:", logResult);
+
                         // Create a direct replace of all messages to ensure proper rendering
                         setTimeout(() => {
                           console.log(
@@ -849,7 +994,7 @@ function App() {
                                   {
                                     type: "text",
                                     text: {
-                                      value: `✅ **Thank you for your feedback!**\n\nYour responses have been recorded:\n- **Rating:** ${json.q1}\n- **Liked:** ${json.q2}\n- **Frustrated:** ${json.q3}\n- **Feature Request:** ${json.q4}\n- **Recommendation:** ${json.q5}\n- **Additional Comments:** ${json.q6}\n\nThis will help us improve the Digital Assistant.`,
+                                      value: `✅ **Thank you for your feedback!**\n\nYour responses have been recorded:\n- **Rating:** ${json.q1}\n- **Liked:** ${json.q2}\n- **Frustrated:** ${json.q3}\n- **Feature Request:** ${json.q4}\n- **Additional Comments:** ${json.q5}\n\nThis will help us improve the Digital Assistant.`,
                                     },
                                   },
                                 ],
@@ -918,21 +1063,98 @@ function App() {
                   content.push({ type: "text", text: { value: "" } });
                 }
 
-                // Update the content at index
+                // Update the content at index — more aggressive check for duplicates
                 const currentText = content[index].text?.value || "";
+                let newValue: string;
+
+                // In feedback mode, we need very aggressive duplicate prevention
+                if (mode === "feedback") {
+                  // Known problematic questions to check for
+                  const questionPatterns = [
+                    /One feature you\'d love to see\?/i,
+                    /What did you like most\?/i,
+                    /What frustrated you\?/i,
+                    /Do you have anything else to add\?/i,
+                  ];
+
+                  // First check if this is a complete question
+                  const isCompleteQuestion = textValue.includes("?");
+
+                  // Check if any of our known patterns are in the new text
+                  const containsKnownPattern = questionPatterns.some(
+                    (pattern) => pattern.test(textValue)
+                  );
+
+                  // Check if current text already contains a question and new text is duplicating
+                  const isDuplicating =
+                    currentText.includes("?") &&
+                    (textValue.includes(
+                      currentText.substring(0, Math.min(currentText.length, 15))
+                    ) ||
+                      currentText.includes(
+                        textValue.substring(0, Math.min(textValue.length, 15))
+                      ));
+
+                  // Special check for single character "?" that sometimes appears - always replace it with full text
+                  if (
+                    currentText === "?" ||
+                    (textValue.length > 1 && currentText.trim() === "?")
+                  ) {
+                    console.log(
+                      "🔍 Detected isolated '?' - replacing with full text"
+                    );
+                    newValue = textValue;
+                  }
+                  // With a complete question or a potential duplicate, always prefer the new text
+                  else if (
+                    isCompleteQuestion &&
+                    (containsKnownPattern || isDuplicating)
+                  ) {
+                    // With a complete question or a potential duplicate, always prefer the new text
+                    newValue = textValue;
+
+                    // Remove any duplicated sentences
+                    const sentences = newValue.split(/(\?)/g).filter(Boolean);
+                    const uniqueSentences = [];
+                    const seen = new Set();
+
+                    for (let i = 0; i < sentences.length; i += 2) {
+                      const sentence = (
+                        sentences[i] + (sentences[i + 1] || "")
+                      ).trim();
+                      if (sentence && !seen.has(sentence.toLowerCase())) {
+                        seen.add(sentence.toLowerCase());
+                        uniqueSentences.push(sentence);
+                      }
+                    }
+
+                    newValue = uniqueSentences.join(" ");
+                  } else {
+                    // For small incremental chunks without duplicates
+                    newValue = currentText + textValue;
+                  }
+                } else {
+                  // Regular non-feedback handling
+                  if (textValue.startsWith(currentText)) {
+                    // New chunk contains the full text so far (cumulative) — replace
+                    newValue = textValue;
+                  } else {
+                    // Fallback: append incremental delta
+                    newValue = currentText + textValue;
+                  }
+                }
+
                 content[index] = {
                   ...content[index],
-                  text: { value: currentText + textValue },
+                  text: { value: newValue },
                 };
 
                 console.log(
-                  `UI updated message: ${currentText.length} => ${
-                    currentText.length + textValue.length
-                  }`
+                  `UI updated message: ${currentText.length} => ${newValue.length}`
                 );
 
                 // If this is an error message (starts with ⚠️), stop the loading state
-                if (textValue.startsWith("⚠️")) {
+                if (newValue.startsWith("⚠️")) {
                   setIsLoading(false);
                 }
 
@@ -1031,6 +1253,10 @@ function App() {
         });
       } finally {
         setIsLoading(false);
+        // Focus input after message is processed
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 100);
       }
     } else {
       console.warn("startFeedback skipped: Input empty or already loading");
@@ -1042,6 +1268,25 @@ function App() {
   console.log("Panel Order:", panelOrder);
   console.log("Content Panels:", contentPanels);
   console.log("Starter Questions Panel:", starterQuestionsPanel);
+
+  // Auto-focus input after messages update and streaming ends
+  useEffect(() => {
+    // Check if all messages have finished streaming
+    const allFinishedStreaming = messages.every((msg) => !msg.streaming);
+
+    // Don't focus in feedback mode if not yet started answering questions
+    const shouldFocus =
+      !isLoading &&
+      allFinishedStreaming &&
+      !(mode === "feedback" && messages.length === 1);
+
+    if (shouldFocus && inputRef.current) {
+      // Small delay to ensure UI has updated
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
+  }, [messages, isLoading, mode]);
 
   return (
     // App.tsx now returns AppLayout directly, or a Fragment if error message needs to be a sibling
@@ -1133,402 +1378,463 @@ function App() {
                 {/* ScrollArea now owns full flex height */}
                 <ScrollArea className="h-full flex-grow p-4 chat-scroll-area custom-scrollbar">
                   <div className="space-y-4 pb-2 mb-2">
-                    {messages.map((message, index) => {
-                      let messageContentElement: React.ReactNode = null;
+                    {/* Counter to renumber feedback questions */}
+                    {(() => {
+                      return messages.map((message, index) => {
+                        let messageContentElement: React.ReactNode = null;
 
-                      // Check if this is the first message in feedback mode and add a special button
-                      const isFirstFeedbackMessage =
-                        mode === "feedback" &&
-                        index === 0 &&
-                        message.type === "ai" &&
-                        !isLoading;
-
-                      if (message.type === "user") {
-                        // User message content is always a string
-                        messageContentElement = (
-                          <p className="whitespace-pre-wrap">
-                            {message.content as string}
-                          </p>
-                        );
-                      } else {
-                        // AI message content is TextContentItem[]
-                        const aiContent = message.content as TextContentItem[]; // Type assertion
-
-                        // Helper function to check if content is empty
-                        const isEmptyContent = () => {
-                          if (
-                            !Array.isArray(aiContent) ||
-                            aiContent.length === 0
-                          )
-                            return true;
-                          if (
-                            aiContent.length === 1 &&
-                            aiContent[0].type === "text"
-                          ) {
-                            return (
-                              !aiContent[0].text?.value ||
-                              aiContent[0].text.value.trim() === ""
-                            );
-                          }
-                          return false;
-                        };
-
-                        // Check if this is a loading message (last AI message while loading)
-                        const isLoadingMessage =
-                          isLoading &&
-                          index === messages.length - 1 &&
-                          message.type === "ai";
-
-                        // First check: Is this a loading message?
-                        if (isLoadingMessage && isEmptyContent()) {
-                          // Show loading animation
-                          messageContentElement = (
-                            <div className="flex items-center space-x-2">
-                              <div
-                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                style={{ animationDelay: "0ms" }}
-                              ></div>
-                              <div
-                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                style={{ animationDelay: "150ms" }}
-                              ></div>
-                              <div
-                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                style={{ animationDelay: "300ms" }}
-                              ></div>
-                            </div>
-                          );
-                        }
-                        // Second check: Is this an empty message?
-                        else if (isEmptyContent()) {
-                          // Empty message but not loading - show placeholder
-                          messageContentElement = (
-                            <p className="text-gray-400">...</p>
-                          );
-                        }
-                        // Special case: Check for JSON feedback results
-                        else if (
+                        // Check if this is the first message in feedback mode and add a special button
+                        const isFirstFeedbackMessage =
                           mode === "feedback" &&
-                          aiContent.length === 1 &&
-                          aiContent[0].type === "text" &&
-                          typeof aiContent[0].text?.value === "string" &&
-                          aiContent[0].text.value.trim().startsWith("{") &&
-                          aiContent[0].text.value.trim().endsWith("}")
-                        ) {
-                          console.log(
-                            "🟢 DETECTED JSON FEEDBACK:",
-                            aiContent[0].text.value
-                          );
+                          index === 0 &&
+                          message.type === "ai" &&
+                          !isLoading;
 
-                          try {
-                            // Parse the JSON
-                            const json = JSON.parse(
-                              aiContent[0].text.value.trim()
-                            );
-
-                            // Check if this is a complete feedback response
-                            if (
-                              json.q1 &&
-                              json.q2 &&
-                              json.q3 &&
-                              json.q4 &&
-                              json.q5
-                            ) {
-                              console.log(
-                                "✅ Valid feedback JSON detected, showing thank you message"
-                              );
-
-                              // Show a nice thank you message instead of raw JSON
-                              messageContentElement = (
-                                <div>
-                                  <div className="prose prose-sm max-w-none">
-                                    <h4 className="text-mha-blue font-semibold mb-2">
-                                      Thank you for your feedback!
-                                    </h4>
-                                    <p className="mb-2">
-                                      Your responses have been recorded:
-                                    </p>
-                                    <ul className="list-disc pl-5 mb-3">
-                                      <li>
-                                        <strong>Rating:</strong> {json.q1}
-                                      </li>
-                                      <li>
-                                        <strong>Liked:</strong> {json.q2}
-                                      </li>
-                                      <li>
-                                        <strong>Frustrated:</strong> {json.q3}
-                                      </li>
-                                      <li>
-                                        <strong>Feature Request:</strong>{" "}
-                                        {json.q4}
-                                      </li>
-                                      <li>
-                                        <strong>Recommendation:</strong>{" "}
-                                        {json.q5}
-                                      </li>
-                                      <li>
-                                        <strong>Additional Comments:</strong>{" "}
-                                        {json.q6}
-                                      </li>
-                                    </ul>
-                                    <p>
-                                      This will help us improve the Digital
-                                      Assistant.
-                                    </p>
-                                  </div>
-
-                                  <div className="flex justify-center w-full mt-4">
-                                    <Button
-                                      className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-2 mb-2 text-base"
-                                      onClick={() => {
-                                        // Reset to policy mode
-                                        setMode("policy");
-                                        // Clear feedback answers
-                                        setFeedbackAnswers(null);
-                                        // Reset feedback thank you shown flag
-                                        feedbackThankYouShown.current = false;
-                                        // Clear messages and start a new chat
-                                        handleNewChat();
-                                      }}
-                                    >
-                                      Return to Digital Assistant
-                                    </Button>
-                                  </div>
-                                </div>
-                              );
-
-                              // Store the feedback answers if not already stored
-                              if (!feedbackAnswers) {
-                                setFeedbackAnswers(json);
-                                feedbackThankYouShown.current = true;
-                              }
-
-                              // Return early since we've handled this message
-                              return (
-                                <div
-                                  key={index}
-                                  className={
-                                    String(message.type) === "user"
-                                      ? "flex justify-end"
-                                      : "flex justify-start"
-                                  }
-                                >
-                                  <Card
-                                    className={`max-w-[80%] p-3 ${
-                                      String(message.type) === "user"
-                                        ? mode === "feedback"
-                                          ? "bg-mha-pink text-white" // Pink for feedback
-                                          : vectorStoreId ===
-                                            "vs_68121a5f918c81919040f9caa54ff5ce"
-                                          ? "bg-[#6bbbae] text-white" // Teal for Guides
-                                          : "bg-mha-blue text-white" // Blue for Policies
-                                        : "bg-white"
-                                    }`}
-                                  >
-                                    {messageContentElement}
-                                  </Card>
-                                </div>
-                              );
-                            }
-                          } catch (err) {
-                            console.error("Error parsing feedback JSON:", err);
-                          }
-                        }
-                        // Third case: Check for returnButton contents
-                        else if (
-                          aiContent.length === 1 &&
-                          aiContent[0].type === "text" &&
-                          typeof aiContent[0].text?.value === "string" &&
-                          aiContent[0].text?.value === "returnButton"
-                        ) {
-                          console.log(
-                            "😎 RETURN BUTTON DETECTED - EXACT MATCH"
-                          );
-
+                        if (message.type === "user") {
+                          // User message content is always a string
                           messageContentElement = (
-                            <div className="flex justify-center w-full">
-                              <Button
-                                className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
-                                onClick={() => {
-                                  // Reset to policy mode
-                                  setMode("policy");
-                                  // Clear feedback answers
-                                  setFeedbackAnswers(null);
-                                  // Reset feedback thank you shown flag
-                                  feedbackThankYouShown.current = false;
-                                  // Clear messages and start a new chat
-                                  handleNewChat();
-                                }}
-                              >
-                                Return to Digital Assistant
-                              </Button>
-                            </div>
+                            <p className="whitespace-pre-wrap">
+                              {message.content as string}
+                            </p>
                           );
                         } else {
-                          // Combine all text items into a single string
-                          const combinedText = aiContent
-                            .map((item) => {
-                              // Make sure item is a TextContentItem before accessing text
-                              if (
-                                item.type === "text" &&
-                                item.text &&
-                                typeof item.text.value === "string"
-                              ) {
-                                return item.text.value;
-                              }
-                              return "";
-                            })
-                            .join("\n"); // Join with single newline
+                          // AI message content is TextContentItem[]
+                          const aiContent =
+                            message.content as TextContentItem[]; // Type assertion
 
-                          // Pre-process the combined text before passing to Markdown parser
-                          const processedText =
-                            processTextForMarkdown(combinedText);
+                          // Helper function to check if content is empty
+                          const isEmptyContent = () => {
+                            if (
+                              !Array.isArray(aiContent) ||
+                              aiContent.length === 0
+                            )
+                              return true;
+                            if (
+                              aiContent.length === 1 &&
+                              aiContent[0].type === "text"
+                            ) {
+                              return (
+                                !aiContent[0].text?.value ||
+                                aiContent[0].text.value.trim() === ""
+                              );
+                            }
+                            return false;
+                          };
 
-                          // Check if this is an error message from the API
-                          if (processedText.startsWith("⚠️")) {
+                          // Check if this is a loading message (last AI message while loading)
+                          const isLoadingMessage =
+                            isLoading &&
+                            index === messages.length - 1 &&
+                            message.type === "ai";
+
+                          // First check: Is this a loading message?
+                          if (isLoadingMessage && isEmptyContent()) {
+                            // Show loading animation
                             messageContentElement = (
-                              <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
-                                {processedText}
+                              <div className="flex items-center space-x-2">
+                                <div
+                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                  style={{ animationDelay: "0ms" }}
+                                ></div>
+                                <div
+                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                  style={{ animationDelay: "150ms" }}
+                                ></div>
+                                <div
+                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                  style={{ animationDelay: "300ms" }}
+                                ></div>
+                              </div>
+                            );
+                          }
+                          // Second check: Is this an empty message?
+                          else if (isEmptyContent()) {
+                            // Empty message but not loading - show placeholder
+                            messageContentElement = (
+                              <p className="text-gray-400">...</p>
+                            );
+                          }
+                          // Special case: Check for JSON feedback results
+                          else if (
+                            mode === "feedback" &&
+                            aiContent.length === 1 &&
+                            aiContent[0].type === "text" &&
+                            typeof aiContent[0].text?.value === "string" &&
+                            aiContent[0].text.value.trim().startsWith("{") &&
+                            aiContent[0].text.value.trim().endsWith("}")
+                          ) {
+                            console.log(
+                              "🟢 DETECTED JSON FEEDBACK:",
+                              aiContent[0].text.value
+                            );
+
+                            try {
+                              // Parse the JSON
+                              const json = JSON.parse(
+                                aiContent[0].text.value.trim()
+                              );
+
+                              // Check if this is a complete feedback response
+                              if (
+                                json.q1 &&
+                                json.q2 &&
+                                json.q3 &&
+                                json.q4 &&
+                                json.q5
+                              ) {
+                                console.log(
+                                  "✅ Valid feedback JSON detected, showing thank you message"
+                                );
+
+                                // Show a nice thank you message instead of raw JSON
+                                messageContentElement = (
+                                  <div>
+                                    <div className="prose prose-sm max-w-none">
+                                      <h4 className="text-mha-blue font-semibold mb-2">
+                                        Thank you for your feedback!
+                                      </h4>
+                                      <p className="mb-2">
+                                        Your responses have been recorded:
+                                      </p>
+                                      <ul className="list-disc pl-5 mb-3">
+                                        <li>
+                                          <strong>Rating:</strong> {json.q1}
+                                        </li>
+                                        <li>
+                                          <strong>Liked:</strong> {json.q2}
+                                        </li>
+                                        <li>
+                                          <strong>Frustrated:</strong> {json.q3}
+                                        </li>
+                                        <li>
+                                          <strong>Feature Request:</strong>{" "}
+                                          {json.q4}
+                                        </li>
+                                        <li>
+                                          <strong>Additional Comments:</strong>{" "}
+                                          {json.q5}
+                                        </li>
+                                      </ul>
+                                      <p>
+                                        This will help us improve the Digital
+                                        Assistant.
+                                      </p>
+                                    </div>
+
+                                    <div className="flex justify-center w-full mt-4">
+                                      <Button
+                                        className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-2 mb-2 text-base"
+                                        onClick={() => {
+                                          // Reset to policy mode
+                                          setMode("policy");
+                                          // Clear feedback answers
+                                          setFeedbackAnswers(null);
+                                          // Reset feedback thank you shown flag
+                                          feedbackThankYouShown.current = false;
+                                          // Restore the original session ID if available
+                                          if (originalSessionIdRef.current) {
+                                            setSessionId(
+                                              originalSessionIdRef.current
+                                            );
+                                            originalSessionIdRef.current = null;
+                                          }
+                                          // Clear messages and start a new chat
+                                          setMessages([
+                                            {
+                                              type: "ai",
+                                              content: [
+                                                {
+                                                  type: "text",
+                                                  text: {
+                                                    value:
+                                                      "Hello! I'm your iSPoC Digital Assistant. How can I help you today?",
+                                                  },
+                                                },
+                                              ],
+                                              streaming: false,
+                                            },
+                                          ]);
+                                          feedbackQCounter.current = 0;
+                                        }}
+                                      >
+                                        Return to Digital Assistant
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+
+                                // Return early since we've handled this message
+                                return (
+                                  <div
+                                    key={index}
+                                    className={
+                                      String(message.type) === "user"
+                                        ? "flex justify-end"
+                                        : "flex justify-start"
+                                    }
+                                  >
+                                    <Card
+                                      className={`max-w-[80%] p-3 ${
+                                        String(message.type) === "user"
+                                          ? mode === "feedback"
+                                            ? "bg-mha-pink text-white" // Pink for feedback
+                                            : vectorStoreId ===
+                                              "vs_68121a5f918c81919040f9caa54ff5ce"
+                                            ? "bg-[#6bbbae] text-white" // Teal for Guides
+                                            : "bg-mha-blue text-white" // Blue for Policies
+                                          : "bg-white"
+                                      }`}
+                                    >
+                                      {messageContentElement}
+                                    </Card>
+                                  </div>
+                                );
+                              }
+                            } catch (err) {
+                              console.error(
+                                "Error parsing feedback JSON:",
+                                err
+                              );
+                              // Hide raw JSON if parsing fails
+                              return null;
+                            }
+                          }
+                          // Third case: Check for returnButton contents
+                          else if (
+                            aiContent.length === 1 &&
+                            aiContent[0].type === "text" &&
+                            typeof aiContent[0].text?.value === "string" &&
+                            aiContent[0].text?.value === "returnButton"
+                          ) {
+                            console.log(
+                              "😎 RETURN BUTTON DETECTED - EXACT MATCH"
+                            );
+
+                            messageContentElement = (
+                              <div className="flex justify-center w-full">
+                                <Button
+                                  className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
+                                  onClick={() => {
+                                    // Reset to policy mode
+                                    setMode("policy");
+                                    // Clear feedback answers
+                                    setFeedbackAnswers(null);
+                                    // Reset feedback thank you shown flag
+                                    feedbackThankYouShown.current = false;
+                                    // Restore the original session ID if available
+                                    if (originalSessionIdRef.current) {
+                                      setSessionId(
+                                        originalSessionIdRef.current
+                                      );
+                                      originalSessionIdRef.current = null;
+                                    }
+                                    // Clear messages and start a new chat
+                                    setMessages([
+                                      {
+                                        type: "ai",
+                                        content: [
+                                          {
+                                            type: "text",
+                                            text: {
+                                              value:
+                                                "Hello! I'm your iSPoC Digital Assistant. How can I help you today?",
+                                            },
+                                          },
+                                        ],
+                                        streaming: false,
+                                      },
+                                    ]);
+                                    feedbackQCounter.current = 0;
+                                  }}
+                                >
+                                  Return to Digital Assistant
+                                </Button>
                               </div>
                             );
                           } else {
-                            messageContentElement = (
-                              <div className="prose prose-sm max-w-none ai-message-content">
-                                {/* Pass PRE-PROCESSED text to ReactMarkdown */}
-                                <ReactMarkdown components={markdownComponents}>
+                            // Combine all text items into a single string
+                            const combinedText = aiContent
+                              .map((item) => {
+                                // Make sure item is a TextContentItem before accessing text
+                                if (
+                                  item.type === "text" &&
+                                  item.text &&
+                                  typeof item.text.value === "string"
+                                ) {
+                                  return item.text.value;
+                                }
+                                return "";
+                              })
+                              .join("\n"); // Join with single newline
+
+                            // Pre-process the combined text before passing to Markdown parser
+                            let processedText =
+                              processTextForMarkdown(combinedText);
+
+                            // Renumber questions in feedback mode (replace leading "1. " with incremental number)
+                            if (
+                              mode === "feedback" &&
+                              /^\s*1\./.test(processedText) &&
+                              !isFirstFeedbackMessage
+                            ) {
+                              feedbackQCounter.current += 1;
+                              processedText = processedText.replace(
+                                /^\s*1\./,
+                                `${feedbackQCounter.current}.`
+                              );
+                            }
+
+                            // Check if this is an error message from the API
+                            if (processedText.startsWith("⚠️")) {
+                              messageContentElement = (
+                                <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
                                   {processedText}
-                                </ReactMarkdown>
+                                </div>
+                              );
+                            } else {
+                              messageContentElement = (
+                                <div className="prose prose-sm max-w-none ai-message-content">
+                                  {/* Pass PRE-PROCESSED text to ReactMarkdown */}
+                                  <ReactMarkdown
+                                    components={markdownComponents}
+                                  >
+                                    {processedText}
+                                  </ReactMarkdown>
+                                </div>
+                              );
+                            }
+                          }
+
+                          // Add survey start button if this is the first message in feedback mode
+                          if (isFirstFeedbackMessage && messages.length === 1) {
+                            const content = aiContent
+                              .filter((item) => item.type === "text")
+                              .map((item) => item.text.value)
+                              .join("\n");
+
+                            messageContentElement = (
+                              <div>
+                                <p className="whitespace-pre-wrap">{content}</p>
+                                <div className="mt-4">
+                                  <Button
+                                    className="bg-mha-pink hover:bg-mha-pink-dark text-white"
+                                    onClick={() => {
+                                      // Send message to start the survey
+                                      handleNewChat("start");
+                                    }}
+                                  >
+                                    Start Survey
+                                  </Button>
+                                </div>
                               </div>
                             );
                           }
                         }
 
-                        // Add survey start button if this is the first message in feedback mode
-                        if (isFirstFeedbackMessage && messages.length === 1) {
-                          const content = aiContent
-                            .filter((item) => item.type === "text")
-                            .map((item) => item.text.value)
-                            .join("\n");
-
-                          messageContentElement = (
-                            <div>
-                              <p className="whitespace-pre-wrap">{content}</p>
-                              <div className="mt-4">
-                                <Button
-                                  className="bg-mha-pink hover:bg-mha-pink-dark text-white"
-                                  onClick={() => {
-                                    // Send message to start the survey
-                                    handleNewChat("start");
-                                  }}
-                                >
-                                  Let's start the survey!
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        }
-                      }
-
-                      return (
-                        <div
-                          key={index}
-                          className={
-                            String(message.type) === "user"
-                              ? "flex justify-end"
-                              : "flex justify-start"
-                          }
-                        >
-                          <Card
-                            className={`max-w-[80%] p-3 ${
+                        return (
+                          <div
+                            key={index}
+                            className={
                               String(message.type) === "user"
-                                ? mode === "feedback"
-                                  ? "bg-mha-pink text-white" // Pink for feedback
-                                  : vectorStoreId ===
-                                    "vs_68121a5f918c81919040f9caa54ff5ce"
-                                  ? "bg-[#6bbbae] text-white" // Teal for Guides
-                                  : "bg-mha-blue text-white" // Blue for Policies
-                                : "bg-white"
-                            }`}
+                                ? "flex justify-end"
+                                : "flex justify-start"
+                            }
                           >
-                            {messageContentElement}
-                          </Card>
-                          {/* Only show sources at the end of the last AI message and only if not loading */}
-                          {message.type === "ai" &&
-                            index === messages.length - 1 &&
-                            !isLoading &&
-                            message.streaming === false &&
-                            (() => {
-                              // Extract sources as before
-                              const aiContent =
-                                message.content as TextContentItem[];
-                              const combinedText = aiContent
-                                .map((item) =>
-                                  item.type === "text" &&
-                                  item.text &&
-                                  typeof item.text.value === "string"
-                                    ? item.text.value
-                                    : ""
-                                )
-                                .join("\n");
-                              let guideSources: string[] = [];
-                              const guideSourcePattern = /【\d+:([^】]+)】/g;
-                              let match;
-                              while (
-                                (match =
-                                  guideSourcePattern.exec(combinedText)) !==
-                                null
-                              ) {
-                                const sourceName = match[1].replace(
-                                  /\.(json|md|txt)$/i,
-                                  ""
-                                );
-                                if (!guideSources.includes(sourceName)) {
-                                  guideSources.push(sourceName);
+                            <Card
+                              className={`max-w-[80%] p-3 ${
+                                String(message.type) === "user"
+                                  ? mode === "feedback"
+                                    ? "bg-mha-pink text-white" // Pink for feedback
+                                    : vectorStoreId ===
+                                      "vs_68121a5f918c81919040f9caa54ff5ce"
+                                    ? "bg-[#6bbbae] text-white" // Teal for Guides
+                                    : "bg-mha-blue text-white" // Blue for Policies
+                                  : "bg-white"
+                              }`}
+                            >
+                              {messageContentElement}
+                            </Card>
+                            {/* Only show sources at the end of the last AI message and only if not loading */}
+                            {message.type === "ai" &&
+                              index === messages.length - 1 &&
+                              !isLoading &&
+                              message.streaming === false &&
+                              (() => {
+                                // Extract sources as before
+                                const aiContent =
+                                  message.content as TextContentItem[];
+                                const combinedText = aiContent
+                                  .map((item) =>
+                                    item.type === "text" &&
+                                    item.text &&
+                                    typeof item.text.value === "string"
+                                      ? item.text.value
+                                      : ""
+                                  )
+                                  .join("\n");
+                                let guideSources: string[] = [];
+                                const guideSourcePattern = /【\d+:([^】]+)】/g;
+                                let match;
+                                while (
+                                  (match =
+                                    guideSourcePattern.exec(combinedText)) !==
+                                  null
+                                ) {
+                                  const sourceName = match[1].replace(
+                                    /\.(json|md|txt)$/i,
+                                    ""
+                                  );
+                                  if (!guideSources.includes(sourceName)) {
+                                    guideSources.push(sourceName);
+                                  }
                                 }
-                              }
-                              const policySourcePattern =
-                                /\[(\d+):(\d+)[*†]([^\]]+)\]/g;
-                              const sourcesSet = new Set<string>();
-                              while (
-                                (match =
-                                  policySourcePattern.exec(combinedText)) !==
-                                null
-                              ) {
-                                if (match[3]) {
-                                  const sourceName = match[3]
-                                    .trim()
-                                    .replace(/\.(json|md|txt)$/i, "");
-                                  sourcesSet.add(sourceName);
+                                const policySourcePattern =
+                                  /\[(\d+):(\d+)[*†]([^\]]+)\]/g;
+                                const sourcesSet = new Set<string>();
+                                while (
+                                  (match =
+                                    policySourcePattern.exec(combinedText)) !==
+                                  null
+                                ) {
+                                  if (match[3]) {
+                                    const sourceName = match[3]
+                                      .trim()
+                                      .replace(/\.(json|md|txt)$/i, "");
+                                    sourcesSet.add(sourceName);
+                                  }
                                 }
-                              }
-                              const policySources = Array.from(sourcesSet);
-                              const allSources = [
-                                ...new Set([...guideSources, ...policySources]),
-                              ];
-                              if (allSources.length > 0) {
-                                return (
-                                  <div className="mt-4 text-xs text-gray-500 border-t pt-2">
-                                    <div className="font-semibold mb-1">
-                                      Sources
+                                const policySources = Array.from(sourcesSet);
+                                const allSources = [
+                                  ...new Set([
+                                    ...guideSources,
+                                    ...policySources,
+                                  ]),
+                                ];
+                                if (allSources.length > 0) {
+                                  return (
+                                    <div className="mt-4 text-xs text-gray-500 border-t pt-2">
+                                      <div className="font-semibold mb-1">
+                                        Sources
+                                      </div>
+                                      <ol className="list-decimal pl-4">
+                                        {allSources.map((source, i) => (
+                                          <li key={i}>{source}</li>
+                                        ))}
+                                      </ol>
                                     </div>
-                                    <ol className="list-decimal pl-4">
-                                      {allSources.map((source, i) => (
-                                        <li key={i}>{source}</li>
-                                      ))}
-                                    </ol>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            })()}
-                        </div>
-                      );
-                    })}
+                                  );
+                                }
+                                return null;
+                              })()}
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </ScrollArea>
 
                 {/* Re-add scroll to bottom button, adjusted position */}
-                {!autoscrollEnabled && (
+                {!autoscrollEnabled && mode !== "feedback" && (
                   <div
                     className="absolute left-1/2 transform -translate-x-1/2"
                     style={{ bottom: "7.5rem", zIndex: 50 }}
