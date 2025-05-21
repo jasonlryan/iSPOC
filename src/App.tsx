@@ -367,7 +367,42 @@ function App() {
   // Add a ref to store the original session ID before switching to feedback mode
   const originalSessionIdRef = useRef<string | null>(null);
 
+  // Add dedicated function to cancel survey - this is the ONLY way survey should exit
+  const cancelSurvey = () => {
+    // Reset to policy mode
+    setMode("policy");
+    // Clear feedback answers
+    setFeedbackAnswers(null);
+    // Reset feedback thank you shown flag
+    feedbackThankYouShown.current = false;
+    // Restore the original session ID if available
+    if (originalSessionIdRef.current) {
+      setSessionId(originalSessionIdRef.current);
+      originalSessionIdRef.current = null;
+    }
+    // Clear messages and start a new chat
+    setMessages([
+      {
+        type: "ai",
+        content: [
+          {
+            type: "text",
+            text: {
+              value:
+                "Hello! I'm your iSPoC Digital Assistant. How can I help you today?",
+            },
+          },
+        ],
+        streaming: false,
+      },
+    ]);
+    feedbackQCounter.current = 0;
+  };
+
   const handleNewChat = async (messageToSend?: string) => {
+    // NEVER handle survey cancellation here - that's cancelSurvey's job
+    // Just process the message normally for both modes
+
     const message = messageToSend || input;
 
     if (message.trim() && !isLoading) {
@@ -613,6 +648,7 @@ function App() {
                   // Known problematic questions to check for
                   const questionPatterns = [
                     /One feature you\'d love to see\?/i,
+                    /feature.*\?/i,
                     /What did you like most\?/i,
                     /What frustrated you\?/i,
                     /Do you have anything else to add\?/i,
@@ -644,7 +680,13 @@ function App() {
                     console.log(
                       "🔍 Detected isolated '?' - replacing with full text"
                     );
-                    newValue = textValue;
+
+                    // Special case for question 4 which often gets truncated to just "?"
+                    if (feedbackQCounter.current === 3) {
+                      newValue = "One feature you'd love to see?";
+                    } else {
+                      newValue = textValue;
+                    }
                   }
                   // With a complete question or a potential duplicate, always prefer the new text
                   else if (
@@ -1072,6 +1114,7 @@ function App() {
                   // Known problematic questions to check for
                   const questionPatterns = [
                     /One feature you\'d love to see\?/i,
+                    /feature.*\?/i,
                     /What did you like most\?/i,
                     /What frustrated you\?/i,
                     /Do you have anything else to add\?/i,
@@ -1103,7 +1146,13 @@ function App() {
                     console.log(
                       "🔍 Detected isolated '?' - replacing with full text"
                     );
-                    newValue = textValue;
+
+                    // Special case for question 4 which often gets truncated to just "?"
+                    if (feedbackQCounter.current === 3) {
+                      newValue = "One feature you'd love to see?";
+                    } else {
+                      newValue = textValue;
+                    }
                   }
                   // With a complete question or a potential duplicate, always prefer the new text
                   else if (
@@ -1362,7 +1411,9 @@ function App() {
                                 : "text-mha-blue" // Blue text for policies
                             } hover:bg-gray-100 font-medium px-4 py-2`
                       }
-                      onClick={() => handleNewChat()}
+                      onClick={() =>
+                        mode === "feedback" ? cancelSurvey() : handleNewChat()
+                      }
                     >
                       <MessageSquare
                         className={`h-4 w-4 mr-2 ${
@@ -1524,38 +1575,7 @@ function App() {
                                     <div className="flex justify-center w-full mt-4">
                                       <Button
                                         className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-2 mb-2 text-base"
-                                        onClick={() => {
-                                          // Reset to policy mode
-                                          setMode("policy");
-                                          // Clear feedback answers
-                                          setFeedbackAnswers(null);
-                                          // Reset feedback thank you shown flag
-                                          feedbackThankYouShown.current = false;
-                                          // Restore the original session ID if available
-                                          if (originalSessionIdRef.current) {
-                                            setSessionId(
-                                              originalSessionIdRef.current
-                                            );
-                                            originalSessionIdRef.current = null;
-                                          }
-                                          // Clear messages and start a new chat
-                                          setMessages([
-                                            {
-                                              type: "ai",
-                                              content: [
-                                                {
-                                                  type: "text",
-                                                  text: {
-                                                    value:
-                                                      "Hello! I'm your iSPoC Digital Assistant. How can I help you today?",
-                                                  },
-                                                },
-                                              ],
-                                              streaming: false,
-                                            },
-                                          ]);
-                                          feedbackQCounter.current = 0;
-                                        }}
+                                        onClick={() => cancelSurvey()}
                                       >
                                         Return to Digital Assistant
                                       </Button>
@@ -1614,38 +1634,7 @@ function App() {
                               <div className="flex justify-center w-full">
                                 <Button
                                   className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
-                                  onClick={() => {
-                                    // Reset to policy mode
-                                    setMode("policy");
-                                    // Clear feedback answers
-                                    setFeedbackAnswers(null);
-                                    // Reset feedback thank you shown flag
-                                    feedbackThankYouShown.current = false;
-                                    // Restore the original session ID if available
-                                    if (originalSessionIdRef.current) {
-                                      setSessionId(
-                                        originalSessionIdRef.current
-                                      );
-                                      originalSessionIdRef.current = null;
-                                    }
-                                    // Clear messages and start a new chat
-                                    setMessages([
-                                      {
-                                        type: "ai",
-                                        content: [
-                                          {
-                                            type: "text",
-                                            text: {
-                                              value:
-                                                "Hello! I'm your iSPoC Digital Assistant. How can I help you today?",
-                                            },
-                                          },
-                                        ],
-                                        streaming: false,
-                                      },
-                                    ]);
-                                    feedbackQCounter.current = 0;
-                                  }}
+                                  onClick={() => cancelSurvey()}
                                 >
                                   Return to Digital Assistant
                                 </Button>
@@ -1869,7 +1858,15 @@ function App() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        handleNewChat();
+                        // In survey mode, only submit if there's text to prevent accidental exit
+                        if (mode === "feedback") {
+                          if (input.trim()) {
+                            handleNewChat();
+                          }
+                        } else {
+                          // In normal chat mode, proceed as usual
+                          handleNewChat();
+                        }
                       }
                     }}
                     placeholder="Type your message... (Shift+Enter for new line)"
