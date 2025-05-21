@@ -66,6 +66,9 @@ async function sendFeedbackToServerless(feedback: FeedbackData): Promise<boolean
     // This will work locally with npm run dev and in production on Vercel
     const apiUrl = '/api/feedback';
     
+    console.log(`📤 SENDING FEEDBACK TO API: ${apiUrl}`, feedback);
+    debug.log('feedback', `Sending feedback to API: ${apiUrl}`);
+    
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -74,16 +77,37 @@ async function sendFeedbackToServerless(feedback: FeedbackData): Promise<boolean
       body: JSON.stringify(feedback)
     });
     
+    // Always log the response status for debugging
+    console.log(`📥 FEEDBACK API RESPONSE: ${response.status} ${response.statusText}`);
+    debug.log('feedback', `API response: ${response.status} ${response.statusText}`);
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Server responded with ${response.status}: ${errorData.error || 'Unknown error'}`);
+      try {
+        const errorData = await response.json();
+        const errorMessage = `Server responded with ${response.status}: ${errorData.error || 'Unknown error'}`;
+        console.error(`❌ FEEDBACK API ERROR:`, errorMessage, errorData);
+        debug.error('feedback', errorMessage, errorData);
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        const errorMessage = `Server responded with ${response.status} and response couldn't be parsed`;
+        console.error(`❌ FEEDBACK API ERROR:`, errorMessage);
+        debug.error('feedback', errorMessage);
+        throw new Error(errorMessage);
+      }
     }
     
-    const result = await response.json();
-    debug.log('feedback', `Serverless response: ${JSON.stringify(result)}`);
-    return true;
+    try {
+      const result = await response.json();
+      console.log(`✅ FEEDBACK API SUCCESS:`, result);
+      debug.log('feedback', `Serverless response: ${JSON.stringify(result)}`);
+      return true;
+    } catch (parseError) {
+      console.error(`⚠️ FEEDBACK API WARNING: Could not parse successful response`, parseError);
+      debug.error('feedback', 'Could not parse successful response', parseError);
+      return true; // Still return true since the request was successful
+    }
   } catch (error) {
-    console.error('Error sending feedback to serverless function:', error);
+    console.error('❌ ERROR SENDING FEEDBACK:', error);
     debug.error('feedback', 'Failed to send feedback to serverless function', error);
     return false;
   }
@@ -104,10 +128,24 @@ export async function logQueryResponse(
   sessionId: string = 'unknown'
 ): Promise<boolean> {
   try {
+    // Clear debug logging for diagnostics
+    console.log('🔵 QUERY LOGGING STARTED:', query.substring(0, 50) + '...');
     debug.log('logging', `Logging query: ${query.substring(0, 100)}...`);
     
     const apiUrl = '/api/log';
+    console.log('🔵 Sending to API URL:', apiUrl);
     
+    // Log payload (truncated)
+    const payload = {
+      query,
+      response: response.substring(0, 100) + '...',
+      userId,
+      sessionId,
+      timestamp: new Date().toISOString()
+    };
+    console.log('🔵 Payload preview:', payload);
+    
+    // Make the actual request with the full data
     const logResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -122,15 +160,32 @@ export async function logQueryResponse(
       })
     });
     
+    // Always log response status
+    console.log(`🔵 LOG API RESPONSE: ${logResponse.status} ${logResponse.statusText}`);
+    
     if (!logResponse.ok) {
-      const errorData = await logResponse.json();
-      throw new Error(`Server responded with ${logResponse.status}: ${errorData.error || 'Unknown error'}`);
+      try {
+        const errorData = await logResponse.json();
+        const errorMessage = `Server responded with ${logResponse.status}: ${errorData.error || 'Unknown error'}`;
+        console.error('🔴 QUERY LOG ERROR:', errorMessage);
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        console.error('🔴 QUERY LOG ERROR: Cannot parse error response');
+        throw new Error(`Server responded with ${logResponse.status}`);
+      }
     }
     
-    debug.log('logging', 'Successfully logged query and response');
-    return true;
+    try {
+      const result = await logResponse.json();
+      console.log('✅ QUERY LOG SUCCESS:', result);
+      debug.log('logging', 'Successfully logged query and response');
+      return true;
+    } catch (parseError) {
+      console.warn('⚠️ QUERY LOG WARNING: Cannot parse success response');
+      return true; // Still return success
+    }
   } catch (error) {
-    console.error('Error logging query and response:', error);
+    console.error('🔴 ERROR LOGGING QUERY:', error);
     debug.error('logging', 'Failed to log query and response', error);
     return false;
   }

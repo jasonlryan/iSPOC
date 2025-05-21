@@ -12,6 +12,14 @@ interface CSVData {
   rows: string[];
 }
 
+interface QueryLogEntry {
+  timestamp: string;
+  userId: string;
+  sessionId: string;
+  query: string;
+  response: string;
+}
+
 const AdminPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -19,10 +27,7 @@ const AdminPage: React.FC = () => {
     headers: "",
     rows: [],
   });
-  const [queryLogData, setQueryLogData] = useState<CSVData>({
-    headers: "",
-    rows: [],
-  });
+  const [queryLogData, setQueryLogData] = useState<QueryLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -108,18 +113,12 @@ const AdminPage: React.FC = () => {
 
       const data = await response.json();
 
-      if (data.rows && Array.isArray(data.rows)) {
-        setQueryLogData({
-          headers: data.headers || "Timestamp,UserId,SessionId,Query,Response",
-          rows: data.rows,
-        });
-        console.log(`Loaded ${data.rows.length} query log entries`);
+      if (data.logs && Array.isArray(data.logs)) {
+        setQueryLogData(data.logs);
+        console.log(`Loaded ${data.logs.length} query log entries`);
       } else {
         console.log("No query log data found or invalid format", data);
-        setQueryLogData({
-          headers: "Timestamp,UserId,SessionId,Query,Response",
-          rows: [],
-        });
+        setQueryLogData([]);
       }
     } catch (err) {
       console.error("Error fetching query log data:", err);
@@ -132,8 +131,41 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // Original downloadCSV for feedback (expects CSVData)
   const downloadCSV = (data: CSVData, filename: string) => {
+    if (data.rows.length === 0) return;
     const csvContent = `${data.headers}\n${data.rows.join("\n")}`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // New function for downloading query logs as CSV (expects QueryLogEntry[])
+  const downloadQueryLogsCSV = (logs: QueryLogEntry[], filename: string) => {
+    if (logs.length === 0) return;
+
+    const headers = "Timestamp,UserId,SessionId,Query,Response";
+    const rows = logs.map((log) => {
+      // Basic CSV sanitization for query and response
+      const sanitize = (value: string) => {
+        let sanitizedValue = value.replace(/\r?\n/g, " "); // Replace newlines with space
+        sanitizedValue = sanitizedValue.replace(/"/g, '""'); // Escape double quotes
+        if (sanitizedValue.includes(",") || sanitizedValue.includes('"')) {
+          return `"${sanitizedValue}"`;
+        }
+        return sanitizedValue;
+      };
+      return `${log.timestamp},${log.userId},${log.sessionId},${sanitize(
+        log.query
+      )},${sanitize(log.response)}`;
+    });
+
+    const csvContent = `${headers}\n${rows.join("\n")}`;
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -260,7 +292,8 @@ const AdminPage: React.FC = () => {
           <Card className="p-6 space-y-4">
             <h2 className="text-xl font-semibold">Query Logs</h2>
             <p className="text-gray-500 text-sm">
-              Download all user queries and responses as a CSV file
+              View user queries and responses (JSON format). You can also
+              download them as a CSV file.
             </p>
             <div className="space-y-2">
               <Button
@@ -274,10 +307,12 @@ const AdminPage: React.FC = () => {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => downloadCSV(queryLogData, "mha-query-logs.csv")}
-                disabled={loading || queryLogData.rows.length === 0}
+                onClick={() =>
+                  downloadQueryLogsCSV(queryLogData, "mha-query-logs.csv")
+                }
+                disabled={loading || queryLogData.length === 0}
               >
-                Download CSV ({queryLogData.rows.length} rows)
+                Download Query Logs as CSV ({queryLogData.length} rows)
               </Button>
 
               <Button
@@ -292,6 +327,23 @@ const AdminPage: React.FC = () => {
           </Card>
         </div>
 
+        {/* Display Query Logs as JSON */}
+        {queryLogData.length > 0 && (
+          <Card className="p-6 space-y-4 mt-6">
+            <h3 className="text-lg font-semibold">Fetched Query Logs (JSON)</h3>
+            <div className="max-h-96 overflow-y-auto space-y-2 bg-gray-50 p-4 rounded">
+              {queryLogData.map((log, index) => (
+                <pre
+                  key={index}
+                  className="text-xs whitespace-pre-wrap break-all p-2 border rounded bg-white"
+                >
+                  {JSON.stringify(log, null, 2)}
+                </pre>
+              ))}
+            </div>
+          </Card>
+        )}
+
         <div className="mt-8 bg-yellow-50 border border-yellow-100 p-4 rounded-md text-yellow-800 text-sm">
           <p className="font-medium">Implementation Notes:</p>
           <p className="mt-1">
@@ -301,17 +353,20 @@ const AdminPage: React.FC = () => {
           <ul className="list-disc ml-5 mt-2 space-y-1">
             <li>
               Feedback data is stored in Redis using the key{" "}
-              <code>feedback_csv_rows</code>
+              <code>feedback_csv_rows_list</code> (CSV format)
             </li>
             <li>
               Query logs are stored in Redis using the key{" "}
-              <code>query_log_csv_rows</code>
+              <code>query_logs</code> (JSON format)
             </li>
             <li>
               The dashboard loads this data from the Admin APIs with
               authorization
             </li>
-            <li>CSV export is generated from the data stored in Redis</li>
+            <li>
+              Download buttons generate CSVs on the client-side from the fetched
+              data.
+            </li>
           </ul>
         </div>
       </div>

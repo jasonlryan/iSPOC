@@ -11,7 +11,8 @@ import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { createResponse, unifiedSystemPrompt } from "./lib/api";
-import feedbackPrompt from "./prompts/feedback_prompt.md?raw";
+// Import raw string into an intermediate variable
+// import actualFeedbackPromptString from "./prompts/feedback_prompt.md?raw"; // No longer needed for feedback flow
 import {
   contentPanels,
   panelOrder,
@@ -35,10 +36,20 @@ interface Message {
   // For AI messages, content is an array of content items
   // For user messages, it's just a string
   content: string | TextContentItem[];
-  streaming: boolean;
+  streaming?: boolean;
 }
 
+const feedbackSurveyQuestions = [
+  "On a scale from 1 to 6, how would you rate your overall experience with MHA?",
+  "What did you like most?",
+  "What frustrated you?",
+  "Name a feature you'd love to see?",
+  "Do you have anything else to add?",
+];
+
 function App() {
+  // const feedbackPrompt = actualFeedbackPromptString; // No longer needed
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpPanelOpen, setHelpPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,15 +73,8 @@ function App() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   // Ref for the input element
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  // Ref to track if scrolling is from a user action vs browser/programmatic
-  const isUserScrollingRef = useRef(false);
-  // Ref for the scroll timeout to reset isUserScrolling flag
-  const scrollTimeoutRef = useRef<number | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [autoHeight, setAutoHeight] = useState("5rem");
-
-  // Ref to maintain running question number in feedback mode
-  const feedbackQCounter = useRef(0);
 
   // Markdown components: ABSOLUTELY BASIC - No cleaning, just render children
   const markdownComponents = {
@@ -146,6 +150,23 @@ function App() {
     import.meta.env.VITE_OPENAI_VECTOR_STORE_ID ||
     "vs_S49gTBhlXwOSZFht2AqbPIsf";
 
+  // Session ID for logging - using ref to avoid unused setter
+  const currentSessionIdRef = useRef<string>("");
+
+  // Initialize the session ID on first render
+  useEffect(() => {
+    const stored = localStorage.getItem("sessionId");
+    if (stored) {
+      currentSessionIdRef.current = stored;
+    } else {
+      const id = crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+      localStorage.setItem("sessionId", id);
+      currentSessionIdRef.current = id;
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
+
   const [messages, setMessages] = useState<Message[]>([
     {
       type: "ai",
@@ -158,7 +179,6 @@ function App() {
           },
         },
       ],
-      streaming: true,
     },
   ]);
 
@@ -268,119 +288,449 @@ function App() {
     return processed;
   };
 
+  const autoscrollEnabledRef = useRef(true);
   const [autoscrollEnabled, setAutoscrollEnabled] = useState(true);
 
-  // After mount, set viewportRef to the Radix viewport
-  useEffect(() => {
-    const el = document.querySelector(
-      ".chat-scroll-area [data-radix-scroll-area-viewport]"
-    );
-    if (el) viewportRef.current = el as HTMLDivElement;
-  }, []);
+  const [feedbackQuestionNumber, setFeedbackQuestionNumber] = useState(0); // 0-4 for 5 questions
+  const [collectedAnswers, setCollectedAnswers] = useState<string[]>([]);
 
-  // 1. Detect user scrolls
-  useEffect(() => {
-    const el = viewportRef.current;
-    if (!el) return;
+  const handleSend = async (messageToSend?: string) => {
+    // Close mobile help panel if it's open
+    if (helpPanelOpen) {
+      setHelpPanelOpen(false);
+    }
 
-    // Track whether user has moved away from the bottom once
-    const leftBottomRef = { current: false } as { current: boolean };
+    autoscrollEnabledRef.current = true;
+    const message = messageToSend || input;
 
-    // Handler for any user interaction
-    const disableAutoscroll = () => {
-      // Set flag that user is scrolling - this distinguishes user actions from browser adjustments
-      isUserScrollingRef.current = true;
+    if (message.trim() && !isLoading) {
+      setIsLoading(true); // Still set loading for user message processing
+      if (!messageToSend) setInput("");
+      setError(null);
 
-      // Reset the flag after a delay
-      if (scrollTimeoutRef.current)
-        window.clearTimeout(scrollTimeoutRef.current);
-      scrollTimeoutRef.current = window.setTimeout(() => {
-        isUserScrollingRef.current = false;
-      }, 1500);
+      const userMsg: Message = { type: "user", content: message };
+      setMessages((prev) => [...prev, userMsg]);
 
-      setAutoscrollEnabled(false);
-    };
+      if (mode === "feedback") {
+        // Frontend handles feedback survey flow
+        const currentAnswer = message.trim(); // Trim the answer for validation
+        let isValid = true;
+        let validationError = "";
 
-    // Handler for scroll (to show/hide button)
-    const onScroll = () => {
-      // Only process scroll events triggered by actual user interaction
-      // This prevents browser scroll adjustments from disabling autoscroll
-      if (!isUserScrollingRef.current) return;
+        if (feedbackQuestionNumber === 0) {
+          // Validating Q1 (rating)
+          const rating = parseInt(currentAnswer, 10);
+          if (isNaN(rating) || rating < 1 || rating > 6) {
+            isValid = false;
+            validationError = "Rating must be a number between 1 and 6.";
+          }
+        } else if (feedbackQuestionNumber < feedbackSurveyQuestions.length) {
+          // Validating Q2-Q5 (text answers)
+          if (currentAnswer === "") {
+            isValid = false;
+            validationError = "Please provide an answer to this question.";
+          }
+        }
 
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-      if (!atBottom && autoscrollEnabled) {
-        // User left bottom → pause autoscroll until they return
-        setAutoscrollEnabled(false);
-        leftBottomRef.current = true;
+        if (!isValid) {
+          setError(validationError);
+          setIsLoading(false); // Stop loading
+          // Do not proceed: don't update question number or collected answers
+          // The user's invalid message is already added to the chat.
+          // They will see the error and can try again.
+          return;
+        }
+
+        // If valid, clear any previous error before proceeding
+        setError(null);
+
+        setCollectedAnswers((prevAnswers) => {
+          const newAnswers = [...prevAnswers];
+          newAnswers[feedbackQuestionNumber] = currentAnswer; // Store validated & trimmed answer
+          return newAnswers;
+        });
+
+        const nextQuestionNum = feedbackQuestionNumber + 1;
+        setFeedbackQuestionNumber(nextQuestionNum);
+
+        if (nextQuestionNum < feedbackSurveyQuestions.length) {
+          // More questions to ask
+          const nextQuestionText = feedbackSurveyQuestions[nextQuestionNum];
+          const aiQuestionMsg: Message = {
+            type: "ai",
+            content: [{ type: "text", text: { value: nextQuestionText } }],
+          };
+          // Add with slight delay for user message to render
+          setTimeout(() => {
+            setMessages((prev) => [...prev, aiQuestionMsg]);
+            setIsLoading(false); // Stop loading after AI (frontend) asks question
+          }, 300);
+        } else {
+          // All questions answered
+          setIsLoading(false); // Stop loading
+          console.log(
+            "✅ All feedback questions answered. Collected:",
+            collectedAnswers.map((ans, idx) => `Q${idx + 1}: ${ans}`)
+          ); // collectedAnswers is 0-indexed here
+
+          // Construct the JSON object
+          // Note: collectedAnswers will have 5 items when nextQuestionNum is 5
+          // We need to use the state of collectedAnswers *before* this current update if we log here directly
+          // So, let's use a temporary updatedAnswers for constructing finalAnswers.
+          const updatedAnswers = [...collectedAnswers, message]; // Add the last answer
+
+          if (updatedAnswers.length === feedbackSurveyQuestions.length) {
+            const finalAnswers = {
+              q1: updatedAnswers[0] || "",
+              q2: updatedAnswers[1] || "",
+              q3: updatedAnswers[2] || "",
+              q4: updatedAnswers[3] || "",
+              q5: updatedAnswers[4] || "",
+            };
+            console.log("⚙️ Constructed final feedback JSON:", finalAnswers);
+            setFeedbackAnswers(finalAnswers); // This triggers useEffect for logging & thank you
+          } else {
+            console.error(
+              "Error: Answer count mismatch. Expected",
+              feedbackSurveyQuestions.length,
+              "got",
+              updatedAnswers.length
+            );
+          }
+        }
+      } else {
+        // Policy mode - call AI
+        if (abortControllerRef.current) abortControllerRef.current.abort();
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
+
+        setMessages((prev) => [
+          ...prev,
+          { type: "ai", content: [{ type: "text", text: { value: "" } }] },
+        ]);
+
+        try {
+          const responseResult: { text: string; id?: string } =
+            await createResponse(
+              message,
+              previousResponseId,
+              (contentItem) => {
+                // CRITICAL: First log at the very top to confirm we received the chunk
+                console.log("UI chunk received:", contentItem);
+
+                // Basic validation
+                if (
+                  !contentItem ||
+                  contentItem.type !== "text" ||
+                  !contentItem.text?.value
+                ) {
+                  console.error("🔴 INVALID CHUNK:", contentItem);
+                  return;
+                }
+
+                const textValue = contentItem.text.value;
+                const index = contentItem.index || 0;
+
+                console.warn(
+                  `🟢 CHUNK TEXT [${index}]: "${textValue.substring(
+                    0,
+                    20
+                  )}..." (${textValue.length} chars)`
+                );
+
+                // Update message state - simplified
+                setMessages((prevMessages) => {
+                  // Clone all messages
+                  const newMessages = [...prevMessages];
+
+                  // Find the last AI message
+                  let lastAIIndex = -1;
+                  for (let i = newMessages.length - 1; i >= 0; i--) {
+                    if (newMessages[i].type === "ai") {
+                      lastAIIndex = i;
+                      break;
+                    }
+                  }
+
+                  // If no AI message found, something is wrong
+                  if (lastAIIndex === -1) {
+                    console.error("No AI message found to update");
+                    return prevMessages;
+                  }
+
+                  // Get current content array
+                  const message = newMessages[lastAIIndex];
+                  let content = [
+                    ...((message.content as TextContentItem[]) || []),
+                  ];
+
+                  // Initialize content if needed
+                  if (content.length === 0) {
+                    content = [{ type: "text", text: { value: "" } }];
+                  }
+
+                  // Make sure index exists in array
+                  while (content.length <= index) {
+                    content.push({ type: "text", text: { value: "" } });
+                  }
+
+                  // Update the content at index
+                  const currentText = content[index].text?.value || "";
+                  content[index] = {
+                    ...content[index],
+                    text: { value: currentText + textValue },
+                  };
+
+                  console.log(
+                    `UI updated message: ${currentText.length} => ${
+                      currentText.length + textValue.length
+                    }`
+                  );
+
+                  // If this is an error message (starts with ⚠️), stop the loading state
+                  if (textValue.startsWith("⚠️")) {
+                    setIsLoading(false);
+                  }
+
+                  // Create new message with updated content
+                  newMessages[lastAIIndex] = {
+                    ...message,
+                    content,
+                  };
+
+                  return newMessages;
+                });
+              },
+              unifiedSystemPrompt, // Use the policy prompt
+              signal
+            );
+
+          // Store the response ID for multi-turn conversation
+          if (responseResult.id) {
+            setPreviousResponseId(responseResult.id);
+          } else {
+            console.warn(
+              "No response ID received, multi-turn conversation may not work"
+            );
+          }
+
+          // Mark streaming complete on the final AI message
+          setMessages((prev) => {
+            const updated = [...prev];
+            for (let i = updated.length - 1; i >= 0; i--) {
+              if (updated[i].type === "ai") {
+                updated[i] = { ...updated[i], streaming: false } as Message;
+                break;
+              }
+            }
+            return updated;
+          });
+
+          // Log the full query/response pair now that streaming is finished
+          console.log(
+            "🌟 Streaming finished - Logging query/response to Redis",
+            {
+              sessionId: currentSessionIdRef.current,
+            }
+          );
+          try {
+            await logQueryResponse(
+              message,
+              responseResult.text,
+              "anonymous",
+              currentSessionIdRef.current
+            );
+            console.log("🌟 logQueryResponse completed");
+          } catch (logError) {
+            console.error("Failed to log query/response:", logError);
+          }
+        } catch (error) {
+          // Check if this was aborted on purpose
+          if (error instanceof Error && error.name === "AbortError") {
+            return;
+          }
+
+          console.error("Error getting response from createResponse:", error);
+          setError("Failed to get a response. Please try again.");
+
+          // Update the AI message with an error
+          setMessages((prev) => {
+            const updatedMessages = [...prev];
+
+            // Find the last AI message
+            let lastAIIndex = -1;
+            for (let i = updatedMessages.length - 1; i >= 0; i--) {
+              if (updatedMessages[i].type === "ai") {
+                lastAIIndex = i;
+                break;
+              }
+            }
+
+            if (lastAIIndex >= 0) {
+              updatedMessages[lastAIIndex].content = [
+                {
+                  type: "text",
+                  text: {
+                    value:
+                      "Sorry, there was an error processing your request. Please try again later.",
+                  },
+                },
+              ];
+            }
+            return updatedMessages;
+          });
+        } finally {
+          setIsLoading(false);
+        }
       }
-
-      // User has returned to bottom after leaving once → resume autoscroll automatically
-      if (atBottom && !autoscrollEnabled && leftBottomRef.current) {
-        setAutoscrollEnabled(true);
-        leftBottomRef.current = false;
-      }
-    };
-
-    el.addEventListener("pointerdown", disableAutoscroll, { passive: true });
-    el.addEventListener("touchstart", disableAutoscroll, { passive: true });
-    el.addEventListener("wheel", disableAutoscroll, { passive: true });
-    el.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => {
-      el.removeEventListener("pointerdown", disableAutoscroll);
-      el.removeEventListener("touchstart", disableAutoscroll);
-      el.removeEventListener("wheel", disableAutoscroll);
-      el.removeEventListener("scroll", onScroll);
-    };
-  }, []);
-
-  // 2. Scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (!autoscrollEnabled) return;
-    const el = viewportRef.current;
-    if (!el) return;
-    setTimeout(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    }, 30);
-  }, [messages, autoscrollEnabled]);
-
-  // 3. Scroll to bottom button handler
-  const handleScrollToBottom = () => {
-    setAutoscrollEnabled(true);
-    const el = viewportRef.current;
-    if (el) {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } else {
+      console.warn("handleSend skipped: Input empty or already loading");
+      if (isLoading) setIsLoading(false); // Ensure loading is reset if skipped
     }
   };
 
-  // Session ID: stable for normal chats, regenerated each time a new feedback survey is launched
-  const [sessionId, setSessionId] = useState(() => {
-    const stored = localStorage.getItem("sessionId");
-    if (stored) return stored;
-    const id = crypto.randomUUID
-      ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2);
-    localStorage.setItem("sessionId", id);
-    return id;
-  });
+  // Add a new state for userHasScrolledUp
+  const userHasScrolledUpRef = useRef(false);
 
-  // Add a ref to store the original session ID before switching to feedback mode
-  const originalSessionIdRef = useRef<string | null>(null);
+  // Bulletproof autoscroll interruption: add all relevant event listeners
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
 
-  // Add dedicated function to cancel survey - this is the ONLY way survey should exit
-  const cancelSurvey = () => {
-    // Reset to policy mode
-    setMode("policy");
-    // Clear feedback answers
-    setFeedbackAnswers(null);
-    // Reset feedback thank you shown flag
-    feedbackThankYouShown.current = false;
-    // Restore the original session ID if available
-    if (originalSessionIdRef.current) {
-      setSessionId(originalSessionIdRef.current);
-      originalSessionIdRef.current = null;
+    const onUserScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      const atBottom = scrollHeight - (scrollTop + clientHeight) < 40; // 40-px tolerance
+
+      setIsAtBottom(atBottom);
+
+      // Sync autoscroll state
+      autoscrollEnabledRef.current = atBottom;
+      setAutoscrollEnabled(atBottom);
+    };
+
+    // Pointer & wheel merely initiate scroll; rely on scroll handler to compute position.
+    viewport.addEventListener("scroll", onUserScroll, { passive: true });
+    viewport.addEventListener("pointerdown", onUserScroll, { passive: true });
+    viewport.addEventListener("touchstart", onUserScroll, { passive: true });
+    viewport.addEventListener("wheel", onUserScroll, { passive: true });
+
+    return () => {
+      viewport.removeEventListener("scroll", onUserScroll);
+      viewport.removeEventListener("pointerdown", onUserScroll);
+      viewport.removeEventListener("touchstart", onUserScroll);
+      viewport.removeEventListener("wheel", onUserScroll);
+    };
+  }, []);
+
+  // Effect to scroll to bottom automatically when messages change
+  useEffect(() => {
+    if ((autoscrollEnabledRef.current && isAtBottom) || messages.length <= 1) {
+      const scrollTimeout = setTimeout(() => {
+        if (autoscrollEnabledRef.current && viewportRef.current) {
+          viewportRef.current.scrollTo({
+            top: viewportRef.current.scrollHeight,
+            behavior: "smooth",
+          });
+        }
+      }, 50);
+      return () => clearTimeout(scrollTimeout);
+    } else {
+      console.log(
+        "[UI] Not autoscrolling because autoscrollEnabledRef is false",
+        isAtBottom,
+        autoscrollEnabledRef.current
+      );
     }
-    // Clear messages and start a new chat
+  }, [messages, isAtBottom]);
+
+  // Effect to detect when actual viewport is available and attach ref
+  useEffect(() => {
+    // Find the viewport element inside our ScrollArea after components mount
+    const viewportElement = document.querySelector(
+      ".chat-scroll-area [data-radix-scroll-area-viewport]"
+    );
+
+    console.log(
+      "[SCROLL DEBUG] Initial attempt. viewportElement:",
+      viewportElement
+    );
+
+    if (viewportElement) {
+      // Store reference to the actual viewport element
+      viewportRef.current = viewportElement as HTMLDivElement;
+
+      // Initial scroll check
+      const element = viewportRef.current as HTMLDivElement;
+      if (autoscrollEnabledRef.current) {
+        element.scrollTo({
+          top: element.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+
+      // Add mutation observer to detect DOM changes within messages
+      const messagesContainer = viewportElement.querySelector(".space-y-4");
+      if (messagesContainer) {
+        const observer = new MutationObserver(() => {
+          const { scrollTop, scrollHeight, clientHeight } = element;
+          const isScrollAtBottom = scrollHeight - scrollTop - clientHeight < 40;
+          if (isScrollAtBottom && autoscrollEnabledRef.current) {
+            requestAnimationFrame(() => {
+              element.scrollTo({
+                top: element.scrollHeight,
+                behavior: "smooth",
+              });
+            });
+          }
+        });
+
+        observer.observe(messagesContainer, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          characterDataOldValue: true,
+        });
+
+        // Cleanup observer on unmount
+        return () => observer.disconnect();
+      }
+    } else {
+      // Set up a retry mechanism
+      const retryTimeout = setTimeout(() => {
+        const retryViewportElement = document.querySelector(
+          ".chat-scroll-area [data-radix-scroll-area-viewport]"
+        );
+        console.log(
+          "[SCROLL DEBUG] Retry attempt. retryViewportElement:",
+          retryViewportElement
+        );
+        if (retryViewportElement) {
+          viewportRef.current = retryViewportElement as HTMLDivElement;
+          if (autoscrollEnabledRef.current) {
+            retryViewportElement.scrollTo({
+              top: retryViewportElement.scrollHeight,
+              behavior: "auto",
+            });
+          }
+        }
+      }, 500);
+
+      return () => clearTimeout(retryTimeout);
+    }
+  }, [isAtBottom]);
+
+  // Handle creating a new chat
+  const handleNewChat = () => {
+    // 1. Abort any ongoing API requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // 1. Stop any current streaming response
+    setIsLoading(false);
+
+    // 2. Reset messages to just the welcome message
     setMessages([
       {
         type: "ai",
@@ -393,949 +743,150 @@ function App() {
             },
           },
         ],
-        streaming: false,
       },
     ]);
-    feedbackQCounter.current = 0;
-  };
 
-  const handleNewChat = async (messageToSend?: string) => {
-    // NEVER handle survey cancellation here - that's cancelSurvey's job
-    // Just process the message normally for both modes
+    // 3. Clear input field
+    setInput("");
 
-    const message = messageToSend || input;
+    // 4. Reset error state
+    setError(null);
 
-    if (message.trim() && !isLoading) {
-      // Reset autoscroll when explicitly starting a new chat with a specific message
-      // This handles starter questions and ensures we autoscroll for each new question
-      if (messageToSend) {
-        setAutoscrollEnabled(true);
-      }
-
-      // First set loading state so the animation appears
-      setIsLoading(true);
-
-      // Clear input field if using the input box
-      if (!messageToSend) {
-        setInput("");
-      }
-
-      // Clear any previous errors
-      setError(null);
-
-      // Create a new AbortController for this request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-
-      // Add user message to the chat
-      const userMsg: Message = {
-        type: "user",
-        content: message,
-        streaming: false,
-      };
-
-      setMessages((prev) => {
-        // If we're in feedback mode and the very first message was just a blank welcome card,
-        // drop it once the user presses Start so the placeholder "..." disappears.
-        const trimmedPrev =
-          mode === "feedback" &&
-          prev.length === 1 &&
-          prev[0].type === "ai" &&
-          Array.isArray(prev[0].content) &&
-          prev[0].content.length === 1 &&
-          (prev[0].content[0] as any).text?.value === ""
-            ? []
-            : prev;
-
-        // Add both the user message and an empty AI message placeholder at once
-        return [
-          ...trimmedPrev,
-          userMsg,
-          {
-            type: "ai",
-            content: [{ type: "text", text: { value: "" } }],
-            streaming: true,
-          },
-        ];
-      });
-
-      try {
-        // Use createResponse for the Responses API with streaming enabled
-        const responseResult: { text: string; id?: string } =
-          await createResponse(
-            message,
-            previousResponseId,
-            (contentItem) => {
-              // CRITICAL: First log at the very top to confirm we received the chunk
-              console.log("UI chunk received:", contentItem);
-
-              // Basic validation
-              if (
-                !contentItem ||
-                contentItem.type !== "text" ||
-                !contentItem.text?.value
-              ) {
-                console.error("🔴 INVALID CHUNK:", contentItem);
-                return;
-              }
-
-              const textValue = contentItem.text.value;
-              const index = contentItem.index || 0;
-
-              console.warn(
-                `🟢 CHUNK TEXT [${index}]: "${textValue.substring(
-                  0,
-                  20
-                )}..." (${textValue.length} chars)`
-              );
-
-              // Special handling for JSON in feedback mode
-              if (mode === "feedback" && textValue.includes("}")) {
-                try {
-                  // Look for complete JSON object
-                  console.log("⚙️ Looking for JSON in:", textValue);
-
-                  // Try to find any JSON object in the text
-                  const match = textValue.match(/\{[\s\S]*\}/);
-                  if (match) {
-                    const jsonText = match[0];
-                    console.log("⚙️ Found JSON text:", jsonText);
-
-                    try {
-                      const json = JSON.parse(jsonText);
-                      console.log("⚙️ Parsed JSON:", json);
-
-                      // More thorough validation
-                      const hasAllRequiredFields =
-                        typeof json === "object" &&
-                        json !== null &&
-                        "q1" in json &&
-                        "q2" in json &&
-                        "q3" in json &&
-                        "q4" in json &&
-                        "q5" in json;
-
-                      // Check if values are non-empty
-                      const hasValidValues =
-                        hasAllRequiredFields &&
-                        json.q1 &&
-                        json.q2 &&
-                        json.q3 &&
-                        json.q4 &&
-                        json.q5;
-
-                      console.log("⚙️ JSON validation:", {
-                        hasAllRequiredFields,
-                        hasValidValues,
-                        feedbackThankYouAlreadyShown:
-                          feedbackThankYouShown.current,
-                      });
-
-                      // Check if we have all 5 answers with valid values and haven't shown the thank you yet
-                      if (hasValidValues && !feedbackThankYouShown.current) {
-                        console.log("⚙️ Feedback answers complete:", json);
-
-                        // Store the feedback answers and set shown flag immediately to prevent duplicates
-                        setFeedbackAnswers(json);
-                        feedbackThankYouShown.current = true;
-
-                        // Log the feedback to CSV and Redis
-                        const logResult = logFeedbackToCSV(json);
-                        console.log("📊 Feedback logged to CSV:", logResult);
-
-                        // Create a direct replace of all messages to ensure proper rendering
-                        setTimeout(() => {
-                          console.log(
-                            "⚙️ Adding feedback summary and return button"
-                          );
-
-                          // Get messages without the JSON result and add two new messages
-                          setMessages((prev) => {
-                            // Keep all messages except the JSON message
-                            const messagesWithoutJson = prev.filter(
-                              (_, i) => i !== prev.length - 1
-                            );
-
-                            // Clear the previous response ID to avoid continuing the conversation
-                            setPreviousResponseId(undefined);
-
-                            return [
-                              ...messagesWithoutJson,
-                              {
-                                type: "ai",
-                                content: [
-                                  {
-                                    type: "text",
-                                    text: {
-                                      value: `✅ **Thank you for your feedback!**\n\nYour responses have been recorded:\n- **Rating:** ${json.q1}\n- **Liked:** ${json.q2}\n- **Frustrated:** ${json.q3}\n- **Feature Request:** ${json.q4}\n- **Additional Comments:** ${json.q5}\n\nThis will help us improve the Digital Assistant.`,
-                                    },
-                                  },
-                                ],
-                                streaming: false,
-                              },
-                              {
-                                type: "ai",
-                                content: [
-                                  {
-                                    type: "text",
-                                    text: {
-                                      value: "returnButton",
-                                    },
-                                  },
-                                ],
-                                streaming: false,
-                              },
-                            ];
-                          });
-                        }, 1000);
-                      }
-                    } catch (err) {
-                      // Not valid JSON yet
-                      console.log("JSON not yet complete", err);
-                    }
-                  }
-                } catch (err) {
-                  // Not valid JSON yet
-                  console.log("JSON not yet complete", err);
-                }
-              }
-
-              // Update message state - simplified
-              setMessages((prevMessages) => {
-                // Clone all messages
-                const updatedMessages1 = [...prevMessages];
-
-                // Find the last AI message
-                let lastAIIndex = -1;
-                for (let i = updatedMessages1.length - 1; i >= 0; i--) {
-                  if (updatedMessages1[i].type === "ai") {
-                    lastAIIndex = i;
-                    break;
-                  }
-                }
-
-                // If no AI message found, something is wrong
-                if (lastAIIndex === -1) {
-                  console.error("No AI message found to update");
-                  return prevMessages;
-                }
-
-                // Get current content array
-                const message = updatedMessages1[lastAIIndex];
-                let content = [
-                  ...((message.content as TextContentItem[]) || []),
-                ];
-
-                // Initialize content if needed
-                if (content.length === 0) {
-                  content = [{ type: "text", text: { value: "" } }];
-                }
-
-                // Make sure index exists in array
-                while (content.length <= index) {
-                  content.push({ type: "text", text: { value: "" } });
-                }
-
-                // Update the content at index — more aggressive check for duplicates
-                const currentText = content[index].text?.value || "";
-                let newValue: string;
-
-                // In feedback mode, we need very aggressive duplicate prevention
-                if (mode === "feedback") {
-                  // Known problematic questions to check for
-                  const questionPatterns = [
-                    /One feature you\'d love to see\?/i,
-                    /feature.*\?/i,
-                    /What did you like most\?/i,
-                    /What frustrated you\?/i,
-                    /Do you have anything else to add\?/i,
-                  ];
-
-                  // First check if this is a complete question
-                  const isCompleteQuestion = textValue.includes("?");
-
-                  // Check if any of our known patterns are in the new text
-                  const containsKnownPattern = questionPatterns.some(
-                    (pattern) => pattern.test(textValue)
-                  );
-
-                  // Check if current text already contains a question and new text is duplicating
-                  const isDuplicating =
-                    currentText.includes("?") &&
-                    (textValue.includes(
-                      currentText.substring(0, Math.min(currentText.length, 15))
-                    ) ||
-                      currentText.includes(
-                        textValue.substring(0, Math.min(textValue.length, 15))
-                      ));
-
-                  // Special check for single character "?" that sometimes appears - always replace it with full text
-                  if (
-                    currentText === "?" ||
-                    (textValue.length > 1 && currentText.trim() === "?")
-                  ) {
-                    console.log(
-                      "🔍 Detected isolated '?' - replacing with full text"
-                    );
-
-                    // Special case for question 4 which often gets truncated to just "?"
-                    if (feedbackQCounter.current === 3) {
-                      newValue = "One feature you'd love to see?";
-                    } else {
-                      newValue = textValue;
-                    }
-                  }
-                  // With a complete question or a potential duplicate, always prefer the new text
-                  else if (
-                    isCompleteQuestion &&
-                    (containsKnownPattern || isDuplicating)
-                  ) {
-                    // With a complete question or a potential duplicate, always prefer the new text
-                    newValue = textValue;
-
-                    // Remove any duplicated sentences
-                    const sentences = newValue.split(/(\?)/g).filter(Boolean);
-                    const uniqueSentences = [];
-                    const seen = new Set();
-
-                    for (let i = 0; i < sentences.length; i += 2) {
-                      const sentence = (
-                        sentences[i] + (sentences[i + 1] || "")
-                      ).trim();
-                      if (sentence && !seen.has(sentence.toLowerCase())) {
-                        seen.add(sentence.toLowerCase());
-                        uniqueSentences.push(sentence);
-                      }
-                    }
-
-                    newValue = uniqueSentences.join(" ");
-                  } else {
-                    // For small incremental chunks without duplicates
-                    newValue = currentText + textValue;
-                  }
-                } else {
-                  // Regular non-feedback handling
-                  if (textValue.startsWith(currentText)) {
-                    // New chunk contains the full text so far (cumulative) — replace
-                    newValue = textValue;
-                  } else {
-                    // Fallback: append incremental delta
-                    newValue = currentText + textValue;
-                  }
-                }
-
-                content[index] = {
-                  ...content[index],
-                  text: { value: newValue },
-                };
-
-                console.log(
-                  `UI updated message: ${currentText.length} => ${newValue.length}`
-                );
-
-                // If this is an error message (starts with ⚠️), stop the loading state
-                if (newValue.startsWith("⚠️")) {
-                  setIsLoading(false);
-                }
-
-                // Create new message with updated content
-                const updatedMessage = {
-                  ...message,
-                  content,
-                };
-
-                // When updating the last AI message, always preserve or set streaming property
-                const updatedContent =
-                  updatedMessage.content as TextContentItem[];
-                const updatedContent1 = updatedContent.map((item, i) => {
-                  if (i === updatedContent.length - 1) {
-                    return { ...item, streaming: updatedMessage.streaming };
-                  }
-                  return item;
-                });
-
-                const updatedMessages2 = updatedMessages1.map((msg, i) => {
-                  if (i === updatedMessages1.length - 1 && msg.type === "ai") {
-                    return {
-                      ...msg,
-                      content: updatedContent1,
-                      streaming: updatedMessage.streaming,
-                    };
-                  }
-                  return msg;
-                });
-
-                return updatedMessages2;
-              });
-            },
-            mode === "feedback" ? feedbackPrompt : unifiedSystemPrompt,
-            signal
-          );
-
-        // Store the response ID for multi-turn conversation
-        if (responseResult.id) {
-          setPreviousResponseId(responseResult.id);
-        }
-
-        // Mark streaming complete on the final AI message
-        setMessages((prev) => {
-          const updated = [...prev];
-          for (let i = updated.length - 1; i >= 0; i--) {
-            if (updated[i].type === "ai") {
-              updated[i] = { ...updated[i], streaming: false } as Message;
-              break;
-            }
-          }
-          return updated;
-        });
-
-        // Log the full query/response pair now that streaming is finished
-        await logQueryResponse(
-          message,
-          responseResult.text,
-          "anonymous",
-          sessionId
-        );
-      } catch (error) {
-        // Check if this was aborted on purpose
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-
-        console.error("Error getting response from createResponse:", error);
-        setError("Failed to get a response. Please try again.");
-
-        // Update the AI message with an error
-        setMessages((prev) => {
-          const updatedMessages = [...prev];
-
-          // Find the last AI message
-          let lastAIIndex = -1;
-          for (let i = updatedMessages.length - 1; i >= 0; i--) {
-            if (updatedMessages[i].type === "ai") {
-              lastAIIndex = i;
-              break;
-            }
-          }
-
-          if (lastAIIndex >= 0) {
-            updatedMessages[lastAIIndex].content = [
-              {
-                type: "text",
-                text: {
-                  value:
-                    "Sorry, there was an error processing your request. Please try again later.",
-                },
-              },
-            ];
-          }
-          return updatedMessages;
-        });
-      } finally {
-        setIsLoading(false);
-        // Focus input after message is processed
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 100);
-      }
-    } else {
-      console.warn("handleNewChat skipped: Input empty or already loading");
-    }
-  };
-
-  const startFeedback = async (messageToSend?: string) => {
-    // ---- 0. SPECIAL CASE: User clicked "Give Feedback" (no message passed) ----
-    if (!messageToSend) {
-      // Store the current session ID before generating a new one for the survey
-      originalSessionIdRef.current = sessionId;
-
-      // Generate a brand-new session id for this survey run (do NOT store in localStorage)
-      const newId = crypto.randomUUID
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2);
-      setSessionId(newId);
-
-      // Reset UI to a single assistant welcome message. Blank screen + Start button will render
-      setMessages([
-        {
-          type: "ai",
-          content: [
-            {
-              type: "text",
-              text: {
-                value: "", // No extra intro text; Start Survey button will appear below
-              },
-            },
-          ],
-          streaming: false,
-        },
-      ]);
-
-      // Flip into feedback mode & reset relevant state
-      setMode("feedback");
-      setPreviousResponseId(undefined);
+    // Reset to policy mode if we were in feedback mode
+    if (mode === "feedback") {
+      setMode("policy");
       setFeedbackAnswers(null);
-      feedbackThankYouShown.current = false;
-      setIsLoading(false);
-      setError(null);
-      setAutoscrollEnabled(true);
-      feedbackQCounter.current = 0;
-
-      return; // nothing more to do until user presses "Start Survey"
-    }
-
-    const message = messageToSend || input;
-
-    if (message.trim() && !isLoading) {
-      // First set loading state so the animation appears
-      setIsLoading(true);
-
-      // Clear input field if using the input box
-      if (!messageToSend) {
-        setInput("");
-      }
-
-      // Clear any previous errors
-      setError(null);
-
-      // Create a new AbortController for this request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-
-      // Add user message to the chat
-      const userMsg: Message = {
-        type: "user",
-        content: message,
-        streaming: false,
-      };
-
-      setMessages((prev) => {
-        // Add both the user message and an empty AI message placeholder at once
-        return [
-          ...prev,
-          userMsg,
-          {
-            type: "ai",
-            content: [{ type: "text", text: { value: "" } }],
-            streaming: true,
-          },
-        ];
-      });
-
-      try {
-        // Use createResponse for the Responses API with streaming enabled
-        const responseResult: { text: string; id?: string } =
-          await createResponse(
-            message,
-            previousResponseId,
-            (contentItem) => {
-              // CRITICAL: First log at the very top to confirm we received the chunk
-              console.log("UI chunk received:", contentItem);
-
-              // Basic validation
-              if (
-                !contentItem ||
-                contentItem.type !== "text" ||
-                !contentItem.text?.value
-              ) {
-                console.error("🔴 INVALID CHUNK:", contentItem);
-                return;
-              }
-
-              const textValue = contentItem.text.value;
-              const index = contentItem.index || 0;
-
-              console.warn(
-                `🟢 CHUNK TEXT [${index}]: "${textValue.substring(
-                  0,
-                  20
-                )}..." (${textValue.length} chars)`
-              );
-
-              // Special handling for JSON in feedback mode
-              if (mode === "feedback" && textValue.includes("}")) {
-                try {
-                  // Look for complete JSON object
-                  console.log("⚙️ Looking for JSON in:", textValue);
-
-                  // Try to find any JSON object in the text
-                  const match = textValue.match(/\{[\s\S]*\}/);
-                  if (match) {
-                    const jsonText = match[0];
-                    console.log("⚙️ Found JSON text:", jsonText);
-
-                    try {
-                      const json = JSON.parse(jsonText);
-                      console.log("⚙️ Parsed JSON:", json);
-
-                      // More thorough validation
-                      const hasAllRequiredFields =
-                        typeof json === "object" &&
-                        json !== null &&
-                        "q1" in json &&
-                        "q2" in json &&
-                        "q3" in json &&
-                        "q4" in json &&
-                        "q5" in json;
-
-                      // Check if values are non-empty
-                      const hasValidValues =
-                        hasAllRequiredFields &&
-                        json.q1 &&
-                        json.q2 &&
-                        json.q3 &&
-                        json.q4 &&
-                        json.q5;
-
-                      console.log("⚙️ JSON validation:", {
-                        hasAllRequiredFields,
-                        hasValidValues,
-                        feedbackThankYouAlreadyShown:
-                          feedbackThankYouShown.current,
-                      });
-
-                      // Check if we have all 5 answers with valid values and haven't shown the thank you yet
-                      if (hasValidValues && !feedbackThankYouShown.current) {
-                        console.log("⚙️ Feedback answers complete:", json);
-
-                        // Store the feedback answers and set shown flag immediately to prevent duplicates
-                        setFeedbackAnswers(json);
-                        feedbackThankYouShown.current = true;
-
-                        // Log the feedback to CSV and Redis
-                        const logResult = logFeedbackToCSV(json);
-                        console.log("📊 Feedback logged to CSV:", logResult);
-
-                        // Create a direct replace of all messages to ensure proper rendering
-                        setTimeout(() => {
-                          console.log(
-                            "⚙️ Adding feedback summary and return button"
-                          );
-
-                          // Get messages without the JSON result and add two new messages
-                          setMessages((prev) => {
-                            // Keep all messages except the JSON message
-                            const messagesWithoutJson = prev.filter(
-                              (_, i) => i !== prev.length - 1
-                            );
-
-                            // Clear the previous response ID to avoid continuing the conversation
-                            setPreviousResponseId(undefined);
-
-                            return [
-                              ...messagesWithoutJson,
-                              {
-                                type: "ai",
-                                content: [
-                                  {
-                                    type: "text",
-                                    text: {
-                                      value: `✅ **Thank you for your feedback!**\n\nYour responses have been recorded:\n- **Rating:** ${json.q1}\n- **Liked:** ${json.q2}\n- **Frustrated:** ${json.q3}\n- **Feature Request:** ${json.q4}\n- **Additional Comments:** ${json.q5}\n\nThis will help us improve the Digital Assistant.`,
-                                    },
-                                  },
-                                ],
-                                streaming: false,
-                              },
-                              {
-                                type: "ai",
-                                content: [
-                                  {
-                                    type: "text",
-                                    text: {
-                                      value: "returnButton",
-                                    },
-                                  },
-                                ],
-                                streaming: false,
-                              },
-                            ];
-                          });
-                        }, 1000);
-                      }
-                    } catch (err) {
-                      // Not valid JSON yet
-                      console.log("JSON not yet complete", err);
-                    }
-                  }
-                } catch (err) {
-                  // Not valid JSON yet
-                  console.log("JSON not yet complete", err);
-                }
-              }
-
-              // Update message state - simplified
-              setMessages((prevMessages) => {
-                // Clone all messages
-                const updatedMessages1 = [...prevMessages];
-
-                // Find the last AI message
-                let lastAIIndex = -1;
-                for (let i = updatedMessages1.length - 1; i >= 0; i--) {
-                  if (updatedMessages1[i].type === "ai") {
-                    lastAIIndex = i;
-                    break;
-                  }
-                }
-
-                // If no AI message found, something is wrong
-                if (lastAIIndex === -1) {
-                  console.error("No AI message found to update");
-                  return prevMessages;
-                }
-
-                // Get current content array
-                const message = updatedMessages1[lastAIIndex];
-                let content = [
-                  ...((message.content as TextContentItem[]) || []),
-                ];
-
-                // Initialize content if needed
-                if (content.length === 0) {
-                  content = [{ type: "text", text: { value: "" } }];
-                }
-
-                // Make sure index exists in array
-                while (content.length <= index) {
-                  content.push({ type: "text", text: { value: "" } });
-                }
-
-                // Update the content at index — more aggressive check for duplicates
-                const currentText = content[index].text?.value || "";
-                let newValue: string;
-
-                // In feedback mode, we need very aggressive duplicate prevention
-                if (mode === "feedback") {
-                  // Known problematic questions to check for
-                  const questionPatterns = [
-                    /One feature you\'d love to see\?/i,
-                    /feature.*\?/i,
-                    /What did you like most\?/i,
-                    /What frustrated you\?/i,
-                    /Do you have anything else to add\?/i,
-                  ];
-
-                  // First check if this is a complete question
-                  const isCompleteQuestion = textValue.includes("?");
-
-                  // Check if any of our known patterns are in the new text
-                  const containsKnownPattern = questionPatterns.some(
-                    (pattern) => pattern.test(textValue)
-                  );
-
-                  // Check if current text already contains a question and new text is duplicating
-                  const isDuplicating =
-                    currentText.includes("?") &&
-                    (textValue.includes(
-                      currentText.substring(0, Math.min(currentText.length, 15))
-                    ) ||
-                      currentText.includes(
-                        textValue.substring(0, Math.min(textValue.length, 15))
-                      ));
-
-                  // Special check for single character "?" that sometimes appears - always replace it with full text
-                  if (
-                    currentText === "?" ||
-                    (textValue.length > 1 && currentText.trim() === "?")
-                  ) {
-                    console.log(
-                      "🔍 Detected isolated '?' - replacing with full text"
-                    );
-
-                    // Special case for question 4 which often gets truncated to just "?"
-                    if (feedbackQCounter.current === 3) {
-                      newValue = "One feature you'd love to see?";
-                    } else {
-                      newValue = textValue;
-                    }
-                  }
-                  // With a complete question or a potential duplicate, always prefer the new text
-                  else if (
-                    isCompleteQuestion &&
-                    (containsKnownPattern || isDuplicating)
-                  ) {
-                    // With a complete question or a potential duplicate, always prefer the new text
-                    newValue = textValue;
-
-                    // Remove any duplicated sentences
-                    const sentences = newValue.split(/(\?)/g).filter(Boolean);
-                    const uniqueSentences = [];
-                    const seen = new Set();
-
-                    for (let i = 0; i < sentences.length; i += 2) {
-                      const sentence = (
-                        sentences[i] + (sentences[i + 1] || "")
-                      ).trim();
-                      if (sentence && !seen.has(sentence.toLowerCase())) {
-                        seen.add(sentence.toLowerCase());
-                        uniqueSentences.push(sentence);
-                      }
-                    }
-
-                    newValue = uniqueSentences.join(" ");
-                  } else {
-                    // For small incremental chunks without duplicates
-                    newValue = currentText + textValue;
-                  }
-                } else {
-                  // Regular non-feedback handling
-                  if (textValue.startsWith(currentText)) {
-                    // New chunk contains the full text so far (cumulative) — replace
-                    newValue = textValue;
-                  } else {
-                    // Fallback: append incremental delta
-                    newValue = currentText + textValue;
-                  }
-                }
-
-                content[index] = {
-                  ...content[index],
-                  text: { value: newValue },
-                };
-
-                console.log(
-                  `UI updated message: ${currentText.length} => ${newValue.length}`
-                );
-
-                // If this is an error message (starts with ⚠️), stop the loading state
-                if (newValue.startsWith("⚠️")) {
-                  setIsLoading(false);
-                }
-
-                // Create new message with updated content
-                const updatedMessage = {
-                  ...message,
-                  content,
-                };
-
-                // When updating the last AI message, always preserve or set streaming property
-                const updatedContent =
-                  updatedMessage.content as TextContentItem[];
-                const updatedContent1 = updatedContent.map((item, i) => {
-                  if (i === updatedContent.length - 1) {
-                    return { ...item, streaming: updatedMessage.streaming };
-                  }
-                  return item;
-                });
-
-                const updatedMessages2 = updatedMessages1.map((msg, i) => {
-                  if (i === updatedMessages1.length - 1 && msg.type === "ai") {
-                    return {
-                      ...msg,
-                      content: updatedContent1,
-                      streaming: updatedMessage.streaming,
-                    };
-                  }
-                  return msg;
-                });
-
-                return updatedMessages2;
-              });
-            },
-            mode === "feedback" ? feedbackPrompt : unifiedSystemPrompt,
-            signal
-          );
-
-        // Store the response ID for multi-turn conversation
-        if (responseResult.id) {
-          setPreviousResponseId(responseResult.id);
-        }
-
-        // Mark streaming complete on the final AI message
-        setMessages((prev) => {
-          const updated = [...prev];
-          for (let i = updated.length - 1; i >= 0; i--) {
-            if (updated[i].type === "ai") {
-              updated[i] = { ...updated[i], streaming: false } as Message;
-              break;
-            }
-          }
-          return updated;
-        });
-
-        // Log the full query/response pair now that streaming is finished
-        await logQueryResponse(
-          message,
-          responseResult.text,
-          "anonymous",
-          sessionId
-        );
-      } catch (error) {
-        // Check if this was aborted on purpose
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-
-        console.error("Error getting response from createResponse:", error);
-        setError("Failed to get a response. Please try again.");
-
-        // Update the AI message with an error
-        setMessages((prev) => {
-          const updatedMessages = [...prev];
-
-          // Find the last AI message
-          let lastAIIndex = -1;
-          for (let i = updatedMessages.length - 1; i >= 0; i--) {
-            if (updatedMessages[i].type === "ai") {
-              lastAIIndex = i;
-              break;
-            }
-          }
-
-          if (lastAIIndex >= 0) {
-            updatedMessages[lastAIIndex].content = [
-              {
-                type: "text",
-                text: {
-                  value:
-                    "Sorry, there was an error processing your request. Please try again later.",
-                },
-              },
-            ];
-          }
-          return updatedMessages;
-        });
-      } finally {
-        setIsLoading(false);
-        // Focus input after message is processed
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 100);
-      }
-    } else {
-      console.warn("startFeedback skipped: Input empty or already loading");
+      feedbackThankYouShown.current = false; // Reset the ref
     }
   };
+
+  // Function to start the feedback survey per original instructions
+  const startFeedback = () => {
+    // Close mobile help panel if it's open
+    if (helpPanelOpen) {
+      setHelpPanelOpen(false);
+    }
+
+    setIsLoading(true); // Set loading briefly
+    setInput("");
+    setError(null);
+    setPreviousResponseId(undefined); // No AI conversation history for this
+    setFeedbackAnswers(null);
+    feedbackThankYouShown.current = false;
+
+    setMode("feedback");
+    setFeedbackQuestionNumber(0);
+    setCollectedAnswers([]);
+
+    const firstQuestionText = feedbackSurveyQuestions[0];
+    setMessages([
+      // No initial "Thank you for taking this survey..." message from AI
+      // User will just see the first question directly
+      {
+        type: "ai",
+        content: [{ type: "text", text: { value: firstQuestionText } }],
+      },
+    ]);
+    setTimeout(() => setIsLoading(false), 100); // Stop loading after first Q is set
+  };
+
+  // useEffect hook for feedbackAnswers (for logging and final thank you message)
+  // This existing hook should now work correctly when setFeedbackAnswers is called
+  useEffect(() => {
+    if (feedbackAnswers) {
+      console.log("📊 Feedback state updated:", feedbackAnswers);
+
+      if (!feedbackThankYouShown.current) {
+        console.log("📊 First time seeing feedback, should show thank you");
+
+        // Log the feedback using the simplified logger
+        const logResult = logFeedbackToCSV(feedbackAnswers);
+        console.log(
+          `📊 Feedback logging ${logResult ? "successful" : "failed"}`
+        );
+
+        // After receiving feedback, show a proper thank you message with return button
+        setTimeout(() => {
+          // Create a formatted thank you message with the feedback data
+          const thankYouMessage = {
+            type: "ai" as const,
+            content: [
+              {
+                type: "text" as const,
+                text: {
+                  value: `✅ **Thank you for your feedback!**
+
+Your responses have been recorded:
+- **Rating:** ${feedbackAnswers.q1}
+- **Liked:** ${feedbackAnswers.q2}
+- **Frustrated:** ${feedbackAnswers.q3}
+- **Feature Request:** ${feedbackAnswers.q4}
+- **Additional Comments:** ${feedbackAnswers.q5}
+
+This will help us improve the Digital Assistant.`,
+                },
+              },
+            ],
+          };
+
+          // Create a separate message just for the return button
+          const returnButtonMessage = {
+            type: "ai" as const,
+            content: [
+              {
+                type: "text" as const,
+                text: {
+                  value: "returnButton",
+                },
+              },
+            ],
+          };
+
+          // Update messages, filter out any JSON response
+          setMessages((prev) => {
+            // Keep all messages except any potential raw JSON
+            const filteredMessages = prev.filter((msg) => {
+              // Skip messages that appear to contain JSON
+              if (
+                msg.type === "ai" &&
+                Array.isArray(msg.content) &&
+                msg.content.length === 1 &&
+                msg.content[0].type === "text" &&
+                typeof msg.content[0].text?.value === "string" &&
+                msg.content[0].text.value.trim().startsWith("{") &&
+                msg.content[0].text.value.trim().endsWith("}")
+              ) {
+                return false;
+              }
+              return true;
+            });
+
+            // Add thank you message and return button
+            return [...filteredMessages, thankYouMessage, returnButtonMessage];
+          });
+        }, 1000);
+      } else {
+        console.log("📊 Already showed thank you for feedback");
+      }
+    }
+  }, [feedbackAnswers]);
+
+  // Add effect to focus input when message loading completes
+  useEffect(() => {
+    // Focus the input field when loading stops
+    if (!isLoading && inputRef.current) {
+      // Brief timeout to ensure UI is fully updated
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isLoading]);
 
   // Add console log to check panel order and content at the beginning of the render function
   // Just before the return statement in the App component
   console.log("Panel Order:", panelOrder);
   console.log("Content Panels:", contentPanels);
   console.log("Starter Questions Panel:", starterQuestionsPanel);
-
-  // Auto-focus input after messages update and streaming ends
-  useEffect(() => {
-    // Check if all messages have finished streaming
-    const allFinishedStreaming = messages.every((msg) => !msg.streaming);
-
-    // Don't focus in feedback mode if not yet started answering questions
-    const shouldFocus =
-      !isLoading &&
-      allFinishedStreaming &&
-      !(mode === "feedback" && messages.length === 1);
-
-    if (shouldFocus && inputRef.current) {
-      // Small delay to ensure UI has updated
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
-    }
-  }, [messages, isLoading, mode]);
 
   return (
     // App.tsx now returns AppLayout directly, or a Fragment if error message needs to be a sibling
@@ -1349,7 +900,7 @@ function App() {
         panelOrder={panelOrder}
         contentPanels={contentPanels}
         starterQuestions={starterQuestions}
-        handleSend={handleNewChat}
+        handleSend={handleSend}
         startFeedback={startFeedback}
         mobileAboutExpanded={mobileAboutExpanded}
         setMobileAboutExpanded={setMobileAboutExpanded}
@@ -1411,9 +962,7 @@ function App() {
                                 : "text-mha-blue" // Blue text for policies
                             } hover:bg-gray-100 font-medium px-4 py-2`
                       }
-                      onClick={() =>
-                        mode === "feedback" ? cancelSurvey() : handleNewChat()
-                      }
+                      onClick={handleNewChat}
                     >
                       <MessageSquare
                         className={`h-4 w-4 mr-2 ${
@@ -1429,407 +978,318 @@ function App() {
                 {/* ScrollArea now owns full flex height */}
                 <ScrollArea className="h-full flex-grow p-4 chat-scroll-area custom-scrollbar">
                   <div className="space-y-4 pb-2 mb-2">
-                    {/* Counter to renumber feedback questions */}
-                    {(() => {
-                      return messages.map((message, index) => {
-                        let messageContentElement: React.ReactNode = null;
+                    {messages.map((message, index) => {
+                      let messageContentElement: React.ReactNode = null;
 
-                        // Check if this is the first message in feedback mode and add a special button
-                        const isFirstFeedbackMessage =
-                          mode === "feedback" &&
-                          index === 0 &&
-                          message.type === "ai" &&
-                          !isLoading;
+                      // Check if this is the first message in feedback mode and add a special button
 
-                        if (message.type === "user") {
-                          // User message content is always a string
+                      if (message.type === "user") {
+                        // User message content is always a string
+                        messageContentElement = (
+                          <p className="whitespace-pre-wrap">
+                            {message.content as string}
+                          </p>
+                        );
+                      } else {
+                        // AI message content is TextContentItem[]
+                        const aiContent = message.content as TextContentItem[]; // Type assertion
+
+                        // Helper function to check if content is empty
+                        const isEmptyContent = () => {
+                          if (
+                            !Array.isArray(aiContent) ||
+                            aiContent.length === 0
+                          )
+                            return true;
+                          if (
+                            aiContent.length === 1 &&
+                            aiContent[0].type === "text"
+                          ) {
+                            return (
+                              !aiContent[0].text?.value ||
+                              aiContent[0].text.value.trim() === ""
+                            );
+                          }
+                          return false;
+                        };
+
+                        // Check if this is a loading message (last AI message while loading)
+                        const isLoadingMessage =
+                          isLoading &&
+                          index === messages.length - 1 &&
+                          message.type === "ai";
+
+                        // First check: Is this a loading message?
+                        if (isLoadingMessage && isEmptyContent()) {
+                          // Show loading animation
                           messageContentElement = (
-                            <p className="whitespace-pre-wrap">
-                              {message.content as string}
-                            </p>
+                            <div className="flex items-center space-x-2">
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "0ms" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "150ms" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                style={{ animationDelay: "300ms" }}
+                              ></div>
+                            </div>
+                          );
+                        }
+                        // Second check: Is this an empty message?
+                        else if (isEmptyContent()) {
+                          // Empty message but not loading - show placeholder
+                          messageContentElement = (
+                            <p className="text-gray-400">...</p>
+                          );
+                        }
+                        // Special case: Check for JSON feedback results
+                        else if (
+                          mode === "feedback" &&
+                          aiContent.length === 1 &&
+                          aiContent[0].type === "text" &&
+                          typeof aiContent[0].text?.value === "string" &&
+                          aiContent[0].text.value.trim().startsWith("{") &&
+                          aiContent[0].text.value.trim().endsWith("}")
+                        ) {
+                          console.log(
+                            "🟢 DETECTED JSON FEEDBACK:",
+                            aiContent[0].text.value
+                          );
+
+                          try {
+                            // Parse the JSON
+                            const json = JSON.parse(
+                              aiContent[0].text.value.trim()
+                            );
+
+                            // Check if this is a complete feedback response
+                            if (
+                              json.q1 &&
+                              json.q2 &&
+                              json.q3 &&
+                              json.q4 &&
+                              json.q5
+                            ) {
+                              console.log(
+                                "✅ Valid feedback JSON detected, showing thank you message"
+                              );
+
+                              // Show a nice thank you message instead of raw JSON
+                              messageContentElement = (
+                                <div>
+                                  <div className="prose prose-sm max-w-none">
+                                    <h4 className="text-mha-blue font-semibold mb-2">
+                                      Thank you for your feedback!
+                                    </h4>
+                                    <p className="mb-2">
+                                      Your responses have been recorded:
+                                    </p>
+                                    <ul className="list-disc pl-5 mb-3">
+                                      <li>
+                                        <strong>Rating:</strong> {json.q1}
+                                      </li>
+                                      <li>
+                                        <strong>Liked:</strong> {json.q2}
+                                      </li>
+                                      <li>
+                                        <strong>Frustrated:</strong> {json.q3}
+                                      </li>
+                                      <li>
+                                        <strong>Feature Request:</strong>{" "}
+                                        {json.q4}
+                                      </li>
+                                      <li>
+                                        <strong>Additional Comments:</strong>{" "}
+                                        {json.q5}
+                                      </li>
+                                    </ul>
+                                    <p>
+                                      This will help us improve the Digital
+                                      Assistant.
+                                    </p>
+                                  </div>
+
+                                  <div className="flex justify-center w-full mt-4">
+                                    <Button
+                                      className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-2 mb-2 text-base"
+                                      onClick={() => {
+                                        // Reset to policy mode
+                                        setMode("policy");
+                                        // Clear feedback answers
+                                        setFeedbackAnswers(null);
+                                        // Reset feedback thank you shown flag
+                                        feedbackThankYouShown.current = false;
+                                        // Clear messages and start a new chat
+                                        handleNewChat();
+                                      }}
+                                    >
+                                      Return to Digital Assistant
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+
+                              // Store the feedback answers if not already stored
+                              if (!feedbackAnswers) {
+                                setFeedbackAnswers(json);
+                                feedbackThankYouShown.current = true;
+                              }
+
+                              // Return early since we've handled this message
+                              return (
+                                <div
+                                  key={index}
+                                  className={
+                                    String(message.type) === "user"
+                                      ? "flex justify-end"
+                                      : "flex justify-start"
+                                  }
+                                >
+                                  <Card
+                                    className={`max-w-[80%] p-3 ${
+                                      String(message.type) === "user"
+                                        ? mode === "feedback"
+                                          ? "bg-mha-pink text-white" // Pink for feedback
+                                          : vectorStoreId ===
+                                            "vs_68121a5f918c81919040f9caa54ff5ce"
+                                          ? "bg-[#6bbbae] text-white" // Teal for Guides
+                                          : "bg-mha-blue text-white" // Blue for Policies
+                                        : "bg-white"
+                                    }`}
+                                  >
+                                    {messageContentElement}
+                                  </Card>
+                                </div>
+                              );
+                            }
+                          } catch (err) {
+                            console.error("Error parsing feedback JSON:", err);
+                          }
+                        }
+                        // Third case: Check for returnButton contents
+                        else if (
+                          aiContent.length === 1 &&
+                          aiContent[0].type === "text" &&
+                          typeof aiContent[0].text?.value === "string" &&
+                          aiContent[0].text?.value === "returnButton"
+                        ) {
+                          console.log(
+                            "😎 RETURN BUTTON DETECTED - EXACT MATCH"
+                          );
+
+                          messageContentElement = (
+                            <div className="flex justify-center w-full">
+                              <Button
+                                className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
+                                onClick={() => {
+                                  // Reset to policy mode
+                                  setMode("policy");
+                                  // Clear feedback answers
+                                  setFeedbackAnswers(null);
+                                  // Reset feedback thank you shown flag
+                                  feedbackThankYouShown.current = false;
+                                  // Clear messages and start a new chat
+                                  handleNewChat();
+                                }}
+                              >
+                                Return to Digital Assistant
+                              </Button>
+                            </div>
                           );
                         } else {
-                          // AI message content is TextContentItem[]
-                          const aiContent =
-                            message.content as TextContentItem[]; // Type assertion
-
-                          // Helper function to check if content is empty
-                          const isEmptyContent = () => {
-                            if (
-                              !Array.isArray(aiContent) ||
-                              aiContent.length === 0
-                            )
-                              return true;
-                            if (
-                              aiContent.length === 1 &&
-                              aiContent[0].type === "text"
-                            ) {
-                              return (
-                                !aiContent[0].text?.value ||
-                                aiContent[0].text.value.trim() === ""
-                              );
-                            }
-                            return false;
-                          };
-
-                          // Check if this is a loading message (last AI message while loading)
-                          const isLoadingMessage =
-                            isLoading &&
-                            index === messages.length - 1 &&
-                            message.type === "ai";
-
-                          // First check: Is this a loading message?
-                          if (isLoadingMessage && isEmptyContent()) {
-                            // Show loading animation
-                            messageContentElement = (
-                              <div className="flex items-center space-x-2">
-                                <div
-                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                  style={{ animationDelay: "0ms" }}
-                                ></div>
-                                <div
-                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                  style={{ animationDelay: "150ms" }}
-                                ></div>
-                                <div
-                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                                  style={{ animationDelay: "300ms" }}
-                                ></div>
-                              </div>
-                            );
-                          }
-                          // Second check: Is this an empty message?
-                          else if (isEmptyContent()) {
-                            // Empty message but not loading - show placeholder
-                            messageContentElement = (
-                              <p className="text-gray-400">...</p>
-                            );
-                          }
-                          // Special case: Check for JSON feedback results
-                          else if (
-                            mode === "feedback" &&
-                            aiContent.length === 1 &&
-                            aiContent[0].type === "text" &&
-                            typeof aiContent[0].text?.value === "string" &&
-                            aiContent[0].text.value.trim().startsWith("{") &&
-                            aiContent[0].text.value.trim().endsWith("}")
-                          ) {
-                            console.log(
-                              "🟢 DETECTED JSON FEEDBACK:",
-                              aiContent[0].text.value
-                            );
-
-                            try {
-                              // Parse the JSON
-                              const json = JSON.parse(
-                                aiContent[0].text.value.trim()
-                              );
-
-                              // Check if this is a complete feedback response
+                          // Combine all text items into a single string
+                          const combinedText = aiContent
+                            .map((item) => {
+                              // Make sure item is a TextContentItem before accessing text
                               if (
-                                json.q1 &&
-                                json.q2 &&
-                                json.q3 &&
-                                json.q4 &&
-                                json.q5
+                                item.type === "text" &&
+                                item.text &&
+                                typeof item.text.value === "string"
                               ) {
-                                console.log(
-                                  "✅ Valid feedback JSON detected, showing thank you message"
-                                );
-
-                                // Show a nice thank you message instead of raw JSON
-                                messageContentElement = (
-                                  <div>
-                                    <div className="prose prose-sm max-w-none">
-                                      <h4 className="text-mha-blue font-semibold mb-2">
-                                        Thank you for your feedback!
-                                      </h4>
-                                      <p className="mb-2">
-                                        Your responses have been recorded:
-                                      </p>
-                                      <ul className="list-disc pl-5 mb-3">
-                                        <li>
-                                          <strong>Rating:</strong> {json.q1}
-                                        </li>
-                                        <li>
-                                          <strong>Liked:</strong> {json.q2}
-                                        </li>
-                                        <li>
-                                          <strong>Frustrated:</strong> {json.q3}
-                                        </li>
-                                        <li>
-                                          <strong>Feature Request:</strong>{" "}
-                                          {json.q4}
-                                        </li>
-                                        <li>
-                                          <strong>Additional Comments:</strong>{" "}
-                                          {json.q5}
-                                        </li>
-                                      </ul>
-                                      <p>
-                                        This will help us improve the Digital
-                                        Assistant.
-                                      </p>
-                                    </div>
-
-                                    <div className="flex justify-center w-full mt-4">
-                                      <Button
-                                        className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-2 mb-2 text-base"
-                                        onClick={() => cancelSurvey()}
-                                      >
-                                        Return to Digital Assistant
-                                      </Button>
-                                    </div>
-                                  </div>
-                                );
-
-                                // Return early since we've handled this message
-                                return (
-                                  <div
-                                    key={index}
-                                    className={
-                                      String(message.type) === "user"
-                                        ? "flex justify-end"
-                                        : "flex justify-start"
-                                    }
-                                  >
-                                    <Card
-                                      className={`max-w-[80%] p-3 ${
-                                        String(message.type) === "user"
-                                          ? mode === "feedback"
-                                            ? "bg-mha-pink text-white" // Pink for feedback
-                                            : vectorStoreId ===
-                                              "vs_68121a5f918c81919040f9caa54ff5ce"
-                                            ? "bg-[#6bbbae] text-white" // Teal for Guides
-                                            : "bg-mha-blue text-white" // Blue for Policies
-                                          : "bg-white"
-                                      }`}
-                                    >
-                                      {messageContentElement}
-                                    </Card>
-                                  </div>
-                                );
+                                return item.text.value;
                               }
-                            } catch (err) {
-                              console.error(
-                                "Error parsing feedback JSON:",
-                                err
-                              );
-                              // Hide raw JSON if parsing fails
-                              return null;
-                            }
-                          }
-                          // Third case: Check for returnButton contents
-                          else if (
-                            aiContent.length === 1 &&
-                            aiContent[0].type === "text" &&
-                            typeof aiContent[0].text?.value === "string" &&
-                            aiContent[0].text?.value === "returnButton"
-                          ) {
-                            console.log(
-                              "😎 RETURN BUTTON DETECTED - EXACT MATCH"
-                            );
+                              return "";
+                            })
+                            .join("\n"); // Join with single newline
 
+                          // Pre-process the combined text before passing to Markdown parser
+                          const processedText =
+                            processTextForMarkdown(combinedText);
+
+                          // Check if this is an error message from the API
+                          if (processedText.startsWith("⚠️")) {
                             messageContentElement = (
-                              <div className="flex justify-center w-full">
-                                <Button
-                                  className="bg-mha-blue hover:bg-mha-blue-dark text-white font-medium px-6 py-3 rounded-md shadow-sm transition-colors mt-4 mb-2 text-base"
-                                  onClick={() => cancelSurvey()}
-                                >
-                                  Return to Digital Assistant
-                                </Button>
+                              <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
+                                {processedText}
                               </div>
                             );
                           } else {
-                            // Combine all text items into a single string
-                            const combinedText = aiContent
-                              .map((item) => {
-                                // Make sure item is a TextContentItem before accessing text
-                                if (
-                                  item.type === "text" &&
-                                  item.text &&
-                                  typeof item.text.value === "string"
-                                ) {
-                                  return item.text.value;
-                                }
-                                return "";
-                              })
-                              .join("\n"); // Join with single newline
-
-                            // Pre-process the combined text before passing to Markdown parser
-                            let processedText =
-                              processTextForMarkdown(combinedText);
-
-                            // Renumber questions in feedback mode (replace leading "1. " with incremental number)
-                            if (
-                              mode === "feedback" &&
-                              /^\s*1\./.test(processedText) &&
-                              !isFirstFeedbackMessage
-                            ) {
-                              feedbackQCounter.current += 1;
-                              processedText = processedText.replace(
-                                /^\s*1\./,
-                                `${feedbackQCounter.current}.`
-                              );
-                            }
-
-                            // Check if this is an error message from the API
-                            if (processedText.startsWith("⚠️")) {
-                              messageContentElement = (
-                                <div className="bg-red-100 border-l-4 border-red-500 p-3 text-red-700">
-                                  {processedText}
-                                </div>
-                              );
-                            } else {
-                              messageContentElement = (
-                                <div className="prose prose-sm max-w-none ai-message-content">
-                                  {/* Pass PRE-PROCESSED text to ReactMarkdown */}
-                                  <ReactMarkdown
-                                    components={markdownComponents}
-                                  >
-                                    {processedText}
-                                  </ReactMarkdown>
-                                </div>
-                              );
-                            }
-                          }
-
-                          // Add survey start button if this is the first message in feedback mode
-                          if (isFirstFeedbackMessage && messages.length === 1) {
-                            const content = aiContent
-                              .filter((item) => item.type === "text")
-                              .map((item) => item.text.value)
-                              .join("\n");
-
                             messageContentElement = (
-                              <div>
-                                <p className="whitespace-pre-wrap">{content}</p>
-                                <div className="mt-4">
-                                  <Button
-                                    className="bg-mha-pink hover:bg-mha-pink-dark text-white"
-                                    onClick={() => {
-                                      // Send message to start the survey
-                                      handleNewChat("start");
-                                    }}
-                                  >
-                                    Start Survey
-                                  </Button>
-                                </div>
+                              <div className="prose prose-sm max-w-none ai-message-content">
+                                {/* Pass PRE-PROCESSED text to ReactMarkdown */}
+                                <ReactMarkdown components={markdownComponents}>
+                                  {processedText}
+                                </ReactMarkdown>
                               </div>
                             );
                           }
                         }
+                      }
 
-                        return (
-                          <div
-                            key={index}
-                            className={
+                      return (
+                        <div
+                          key={index}
+                          className={
+                            String(message.type) === "user"
+                              ? "flex justify-end"
+                              : "flex justify-start"
+                          }
+                        >
+                          <Card
+                            className={`max-w-[80%] p-3 ${
                               String(message.type) === "user"
-                                ? "flex justify-end"
-                                : "flex justify-start"
-                            }
+                                ? mode === "feedback"
+                                  ? "bg-mha-pink text-white" // Pink for feedback
+                                  : vectorStoreId ===
+                                    "vs_68121a5f918c81919040f9caa54ff5ce"
+                                  ? "bg-[#6bbbae] text-white" // Teal for Guides
+                                  : "bg-mha-blue text-white" // Blue for Policies
+                                : "bg-white"
+                            }`}
                           >
-                            <Card
-                              className={`max-w-[80%] p-3 ${
-                                String(message.type) === "user"
-                                  ? mode === "feedback"
-                                    ? "bg-mha-pink text-white" // Pink for feedback
-                                    : vectorStoreId ===
-                                      "vs_68121a5f918c81919040f9caa54ff5ce"
-                                    ? "bg-[#6bbbae] text-white" // Teal for Guides
-                                    : "bg-mha-blue text-white" // Blue for Policies
-                                  : "bg-white"
-                              }`}
-                            >
-                              {messageContentElement}
-                            </Card>
-                            {/* Only show sources at the end of the last AI message and only if not loading */}
-                            {message.type === "ai" &&
-                              index === messages.length - 1 &&
-                              !isLoading &&
-                              message.streaming === false &&
-                              (() => {
-                                // Extract sources as before
-                                const aiContent =
-                                  message.content as TextContentItem[];
-                                const combinedText = aiContent
-                                  .map((item) =>
-                                    item.type === "text" &&
-                                    item.text &&
-                                    typeof item.text.value === "string"
-                                      ? item.text.value
-                                      : ""
-                                  )
-                                  .join("\n");
-                                let guideSources: string[] = [];
-                                const guideSourcePattern = /【\d+:([^】]+)】/g;
-                                let match;
-                                while (
-                                  (match =
-                                    guideSourcePattern.exec(combinedText)) !==
-                                  null
-                                ) {
-                                  const sourceName = match[1].replace(
-                                    /\.(json|md|txt)$/i,
-                                    ""
-                                  );
-                                  if (!guideSources.includes(sourceName)) {
-                                    guideSources.push(sourceName);
-                                  }
-                                }
-                                const policySourcePattern =
-                                  /\[(\d+):(\d+)[*†]([^\]]+)\]/g;
-                                const sourcesSet = new Set<string>();
-                                while (
-                                  (match =
-                                    policySourcePattern.exec(combinedText)) !==
-                                  null
-                                ) {
-                                  if (match[3]) {
-                                    const sourceName = match[3]
-                                      .trim()
-                                      .replace(/\.(json|md|txt)$/i, "");
-                                    sourcesSet.add(sourceName);
-                                  }
-                                }
-                                const policySources = Array.from(sourcesSet);
-                                const allSources = [
-                                  ...new Set([
-                                    ...guideSources,
-                                    ...policySources,
-                                  ]),
-                                ];
-                                if (allSources.length > 0) {
-                                  return (
-                                    <div className="mt-4 text-xs text-gray-500 border-t pt-2">
-                                      <div className="font-semibold mb-1">
-                                        Sources
-                                      </div>
-                                      <ol className="list-decimal pl-4">
-                                        {allSources.map((source, i) => (
-                                          <li key={i}>{source}</li>
-                                        ))}
-                                      </ol>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                          </div>
-                        );
-                      });
-                    })()}
+                            {messageContentElement}
+                          </Card>
+                        </div>
+                      );
+                    })}
                   </div>
                 </ScrollArea>
 
                 {/* Re-add scroll to bottom button, adjusted position */}
-                {!autoscrollEnabled && mode !== "feedback" && (
+                {!autoscrollEnabled && (
                   <div
                     className="absolute left-1/2 transform -translate-x-1/2"
                     style={{ bottom: "7.5rem", zIndex: 50 }}
                   >
                     <Button
-                      onClick={handleScrollToBottom}
+                      onClick={() => {
+                        if (viewportRef.current) {
+                          viewportRef.current.scrollTo({
+                            top: viewportRef.current.scrollHeight,
+                            behavior: "smooth",
+                          });
+
+                          // Re-enable auto-scroll and update flags
+                          autoscrollEnabledRef.current = true;
+                          setIsAtBottom(true);
+                          setAutoscrollEnabled(true);
+                          userHasScrolledUpRef.current = false;
+                        }
+                      }}
                       className="rounded-full shadow-lg bg-mha-blue hover:bg-mha-blue-dark p-2 opacity-80 hover:opacity-100 transition-opacity"
                       aria-label="Scroll to bottom"
                     >
@@ -1858,15 +1318,7 @@ function App() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        // In survey mode, only submit if there's text to prevent accidental exit
-                        if (mode === "feedback") {
-                          if (input.trim()) {
-                            handleNewChat();
-                          }
-                        } else {
-                          // In normal chat mode, proceed as usual
-                          handleNewChat();
-                        }
+                        handleSend();
                       }
                     }}
                     placeholder="Type your message... (Shift+Enter for new line)"
@@ -1875,7 +1327,7 @@ function App() {
                     style={{ height: autoHeight, maxHeight: "30vh" }}
                   />
                   <Button
-                    onClick={() => handleNewChat()}
+                    onClick={() => handleSend()}
                     disabled={isLoading}
                     className="bg-mha-pink hover:bg-mha-pink-dark"
                   >
@@ -1932,7 +1384,8 @@ function App() {
                                 key={index}
                                 className="p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer"
                                 onClick={() => {
-                                  handleNewChat(question.question);
+                                  autoscrollEnabledRef.current = true;
+                                  handleSend(question.question);
                                 }}
                               >
                                 <p className="font-medium text-mha-blue">
@@ -2010,7 +1463,7 @@ function App() {
                             <div className="mt-4">
                               <Button
                                 className="w-full bg-mha-pink hover:bg-mha-pink-dark text-white"
-                                onClick={() => startFeedback()}
+                                onClick={startFeedback}
                               >
                                 <MessageSquarePlus className="h-4 w-4 mr-2" />
                                 Give Feedback
