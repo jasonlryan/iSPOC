@@ -11,14 +11,15 @@ import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { createResponse, unifiedSystemPrompt } from "./lib/api";
-import feedbackPrompt from "./prompts/feedback_prompt.md?raw";
+// Import raw string into an intermediate variable
+// import actualFeedbackPromptString from "./prompts/feedback_prompt.md?raw"; // No longer needed for feedback flow
 import {
   contentPanels,
   panelOrder,
   starterQuestionsPanel,
   starterQuestions,
 } from "./lib/content-config";
-import { logFeedbackToCSV } from "./lib/feedback-logger";
+import { logFeedbackToCSV, logQueryResponse } from "./lib/feedback-logger";
 import { AppLayout } from "./components/AppLayout";
 
 // Define message content structure for AI messages
@@ -35,9 +36,20 @@ interface Message {
   // For AI messages, content is an array of content items
   // For user messages, it's just a string
   content: string | TextContentItem[];
+  streaming?: boolean;
 }
 
+const feedbackSurveyQuestions = [
+  "On a scale from 1 to 6, how would you rate your overall experience with MHA?",
+  "What did you like most?",
+  "What frustrated you?",
+  "Name a feature you'd love to see?",
+  "Do you have anything else to add?",
+];
+
 function App() {
+  // const feedbackPrompt = actualFeedbackPromptString; // No longer needed
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpPanelOpen, setHelpPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -137,6 +149,23 @@ function App() {
   const vectorStoreId =
     import.meta.env.VITE_OPENAI_VECTOR_STORE_ID ||
     "vs_S49gTBhlXwOSZFht2AqbPIsf";
+
+  // Session ID for logging - using ref to avoid unused setter
+  const currentSessionIdRef = useRef<string>("");
+
+  // Initialize the session ID on first render
+  useEffect(() => {
+    const stored = localStorage.getItem("sessionId");
+    if (stored) {
+      currentSessionIdRef.current = stored;
+    } else {
+      const id = crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+      localStorage.setItem("sessionId", id);
+      currentSessionIdRef.current = id;
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -262,302 +291,301 @@ function App() {
   const autoscrollEnabledRef = useRef(true);
   const [autoscrollEnabled, setAutoscrollEnabled] = useState(true);
 
+  const [feedbackQuestionNumber, setFeedbackQuestionNumber] = useState(0); // 0-4 for 5 questions
+  const [collectedAnswers, setCollectedAnswers] = useState<string[]>([]);
+
   const handleSend = async (messageToSend?: string) => {
+    // Close mobile help panel if it's open
+    if (helpPanelOpen) {
+      setHelpPanelOpen(false);
+    }
+
     autoscrollEnabledRef.current = true;
     const message = messageToSend || input;
 
     if (message.trim() && !isLoading) {
-      // First set loading state so the animation appears
-      setIsLoading(true);
-
-      // Clear input field if using the input box
-      if (!messageToSend) {
-        setInput("");
-      }
-
-      // Clear any previous errors
+      setIsLoading(true); // Still set loading for user message processing
+      if (!messageToSend) setInput("");
       setError(null);
 
-      // Create a new AbortController for this request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-
-      // Add user message to the chat
       const userMsg: Message = { type: "user", content: message };
+      setMessages((prev) => [...prev, userMsg]);
 
-      setMessages((prev) => {
-        // Add both the user message and an empty AI message placeholder at once
-        return [
-          ...prev,
-          userMsg,
-          { type: "ai", content: [{ type: "text", text: { value: "" } }] },
-        ];
-      });
+      if (mode === "feedback") {
+        // Frontend handles feedback survey flow
+        const currentAnswer = message.trim(); // Trim the answer for validation
+        let isValid = true;
+        let validationError = "";
 
-      try {
-        // Use createResponse for the Responses API with streaming enabled
-        const responseResult: { text: string; id?: string } =
-          await createResponse(
-            message,
-            previousResponseId,
-            (contentItem) => {
-              // CRITICAL: First log at the very top to confirm we received the chunk
-              console.log("UI chunk received:", contentItem);
-
-              // Basic validation
-              if (
-                !contentItem ||
-                contentItem.type !== "text" ||
-                !contentItem.text?.value
-              ) {
-                console.error("🔴 INVALID CHUNK:", contentItem);
-                return;
-              }
-
-              const textValue = contentItem.text.value;
-              const index = contentItem.index || 0;
-
-              console.warn(
-                `🟢 CHUNK TEXT [${index}]: "${textValue.substring(
-                  0,
-                  20
-                )}..." (${textValue.length} chars)`
-              );
-
-              // Special handling for JSON in feedback mode
-              if (mode === "feedback" && textValue.includes("}")) {
-                try {
-                  // Look for complete JSON object
-                  console.log("⚙️ Looking for JSON in:", textValue);
-
-                  // Try to find any JSON object in the text
-                  const match = textValue.match(/\{[\s\S]*\}/);
-                  if (match) {
-                    const jsonText = match[0];
-                    console.log("⚙️ Found JSON text:", jsonText);
-
-                    try {
-                      const json = JSON.parse(jsonText);
-                      console.log("⚙️ Parsed JSON:", json);
-
-                      // More thorough validation
-                      const hasAllRequiredFields =
-                        typeof json === "object" &&
-                        json !== null &&
-                        "q1" in json &&
-                        "q2" in json &&
-                        "q3" in json &&
-                        "q4" in json &&
-                        "q5" in json &&
-                        "q6" in json;
-
-                      // Check if values are non-empty
-                      const hasValidValues =
-                        hasAllRequiredFields &&
-                        json.q1 &&
-                        json.q2 &&
-                        json.q3 &&
-                        json.q4 &&
-                        json.q5;
-
-                      console.log("⚙️ JSON validation:", {
-                        hasAllRequiredFields,
-                        hasValidValues,
-                        feedbackThankYouAlreadyShown:
-                          feedbackThankYouShown.current,
-                      });
-
-                      // Check if we have all 5 answers with valid values and haven't shown the thank you yet
-                      if (hasValidValues && !feedbackThankYouShown.current) {
-                        console.log("⚙️ Feedback answers complete:", json);
-
-                        // Store the feedback answers and set shown flag immediately to prevent duplicates
-                        setFeedbackAnswers(json);
-                        feedbackThankYouShown.current = true;
-
-                        // Create a direct replace of all messages to ensure proper rendering
-                        setTimeout(() => {
-                          console.log(
-                            "⚙️ Adding feedback summary and return button"
-                          );
-
-                          // Get messages without the JSON result and add two new messages
-                          setMessages((prev) => {
-                            // Keep all messages except the JSON message
-                            const messagesWithoutJson = prev.filter(
-                              (_, i) => i !== prev.length - 1
-                            );
-
-                            // Clear the previous response ID to avoid continuing the conversation
-                            setPreviousResponseId(undefined);
-
-                            return [
-                              ...messagesWithoutJson,
-                              {
-                                type: "ai",
-                                content: [
-                                  {
-                                    type: "text",
-                                    text: {
-                                      value: `✅ **Thank you for your feedback!**
-
-Your responses have been recorded:
-- **Rating:** ${json.q1}
-- **Liked:** ${json.q2}
-- **Frustrated:** ${json.q3}
-- **Feature Request:** ${json.q4}
-- **Recommendation:** ${json.q5}
-- **Additional Comments:** ${json.q6}
-
-This will help us improve the Digital Assistant.`,
-                                    },
-                                  },
-                                ],
-                              },
-                              {
-                                type: "ai",
-                                content: [
-                                  {
-                                    type: "text",
-                                    text: {
-                                      value: "returnButton",
-                                    },
-                                  },
-                                ],
-                              },
-                            ];
-                          });
-                        }, 1000);
-                      }
-                    } catch (err) {
-                      // Not valid JSON yet
-                      console.log("JSON not yet complete", err);
-                    }
-                  }
-                } catch (err) {
-                  // Not valid JSON yet
-                  console.log("JSON not yet complete", err);
-                }
-              }
-
-              // Update message state - simplified
-              setMessages((prevMessages) => {
-                // Clone all messages
-                const newMessages = [...prevMessages];
-
-                // Find the last AI message
-                let lastAIIndex = -1;
-                for (let i = newMessages.length - 1; i >= 0; i--) {
-                  if (newMessages[i].type === "ai") {
-                    lastAIIndex = i;
-                    break;
-                  }
-                }
-
-                // If no AI message found, something is wrong
-                if (lastAIIndex === -1) {
-                  console.error("No AI message found to update");
-                  return prevMessages;
-                }
-
-                // Get current content array
-                const message = newMessages[lastAIIndex];
-                let content = [
-                  ...((message.content as TextContentItem[]) || []),
-                ];
-
-                // Initialize content if needed
-                if (content.length === 0) {
-                  content = [{ type: "text", text: { value: "" } }];
-                }
-
-                // Make sure index exists in array
-                while (content.length <= index) {
-                  content.push({ type: "text", text: { value: "" } });
-                }
-
-                // Update the content at index
-                const currentText = content[index].text?.value || "";
-                content[index] = {
-                  ...content[index],
-                  text: { value: currentText + textValue },
-                };
-
-                console.log(
-                  `UI updated message: ${currentText.length} => ${
-                    currentText.length + textValue.length
-                  }`
-                );
-
-                // If this is an error message (starts with ⚠️), stop the loading state
-                if (textValue.startsWith("⚠️")) {
-                  setIsLoading(false);
-                }
-
-                // Create new message with updated content
-                newMessages[lastAIIndex] = {
-                  ...message,
-                  content,
-                };
-
-                return newMessages;
-              });
-            },
-            mode === "feedback" ? feedbackPrompt : unifiedSystemPrompt,
-            signal
-          );
-
-        // Store the response ID for multi-turn conversation
-        if (responseResult.id) {
-          setPreviousResponseId(responseResult.id);
-        } else {
-          console.warn(
-            "No response ID received, multi-turn conversation may not work"
-          );
+        if (feedbackQuestionNumber === 0) {
+          // Validating Q1 (rating)
+          const rating = parseInt(currentAnswer, 10);
+          if (isNaN(rating) || rating < 1 || rating > 6) {
+            isValid = false;
+            validationError = "Rating must be a number between 1 and 6.";
+          }
+        } else if (feedbackQuestionNumber < feedbackSurveyQuestions.length) {
+          // Validating Q2-Q5 (text answers)
+          if (currentAnswer === "") {
+            isValid = false;
+            validationError = "Please provide an answer to this question.";
+          }
         }
-      } catch (error) {
-        // Check if this was aborted on purpose
-        if (error instanceof Error && error.name === "AbortError") {
+
+        if (!isValid) {
+          setError(validationError);
+          setIsLoading(false); // Stop loading
+          // Do not proceed: don't update question number or collected answers
+          // The user's invalid message is already added to the chat.
+          // They will see the error and can try again.
           return;
         }
 
-        console.error("Error getting response from createResponse:", error);
-        setError("Failed to get a response. Please try again.");
+        // If valid, clear any previous error before proceeding
+        setError(null);
 
-        // Update the AI message with an error
-        setMessages((prev) => {
-          const updatedMessages = [...prev];
-
-          // Find the last AI message
-          let lastAIIndex = -1;
-          for (let i = updatedMessages.length - 1; i >= 0; i--) {
-            if (updatedMessages[i].type === "ai") {
-              lastAIIndex = i;
-              break;
-            }
-          }
-
-          if (lastAIIndex >= 0) {
-            updatedMessages[lastAIIndex].content = [
-              {
-                type: "text",
-                text: {
-                  value:
-                    "Sorry, there was an error processing your request. Please try again later.",
-                },
-              },
-            ];
-          }
-          return updatedMessages;
+        setCollectedAnswers((prevAnswers) => {
+          const newAnswers = [...prevAnswers];
+          newAnswers[feedbackQuestionNumber] = currentAnswer; // Store validated & trimmed answer
+          return newAnswers;
         });
-      } finally {
-        setIsLoading(false);
+
+        const nextQuestionNum = feedbackQuestionNumber + 1;
+        setFeedbackQuestionNumber(nextQuestionNum);
+
+        if (nextQuestionNum < feedbackSurveyQuestions.length) {
+          // More questions to ask
+          const nextQuestionText = feedbackSurveyQuestions[nextQuestionNum];
+          const aiQuestionMsg: Message = {
+            type: "ai",
+            content: [{ type: "text", text: { value: nextQuestionText } }],
+          };
+          // Add with slight delay for user message to render
+          setTimeout(() => {
+            setMessages((prev) => [...prev, aiQuestionMsg]);
+            setIsLoading(false); // Stop loading after AI (frontend) asks question
+          }, 300);
+        } else {
+          // All questions answered
+          setIsLoading(false); // Stop loading
+          console.log(
+            "✅ All feedback questions answered. Collected:",
+            collectedAnswers.map((ans, idx) => `Q${idx + 1}: ${ans}`)
+          ); // collectedAnswers is 0-indexed here
+
+          // Construct the JSON object
+          // Note: collectedAnswers will have 5 items when nextQuestionNum is 5
+          // We need to use the state of collectedAnswers *before* this current update if we log here directly
+          // So, let's use a temporary updatedAnswers for constructing finalAnswers.
+          const updatedAnswers = [...collectedAnswers, message]; // Add the last answer
+
+          if (updatedAnswers.length === feedbackSurveyQuestions.length) {
+            const finalAnswers = {
+              q1: updatedAnswers[0] || "",
+              q2: updatedAnswers[1] || "",
+              q3: updatedAnswers[2] || "",
+              q4: updatedAnswers[3] || "",
+              q5: updatedAnswers[4] || "",
+            };
+            console.log("⚙️ Constructed final feedback JSON:", finalAnswers);
+            setFeedbackAnswers(finalAnswers); // This triggers useEffect for logging & thank you
+          } else {
+            console.error(
+              "Error: Answer count mismatch. Expected",
+              feedbackSurveyQuestions.length,
+              "got",
+              updatedAnswers.length
+            );
+          }
+        }
+      } else {
+        // Policy mode - call AI
+        if (abortControllerRef.current) abortControllerRef.current.abort();
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
+
+        setMessages((prev) => [
+          ...prev,
+          { type: "ai", content: [{ type: "text", text: { value: "" } }] },
+        ]);
+
+        try {
+          const responseResult: { text: string; id?: string } =
+            await createResponse(
+              message,
+              previousResponseId,
+              (contentItem) => {
+                // CRITICAL: First log at the very top to confirm we received the chunk
+                console.log("UI chunk received:", contentItem);
+
+                // Basic validation
+                if (
+                  !contentItem ||
+                  contentItem.type !== "text" ||
+                  !contentItem.text?.value
+                ) {
+                  console.error("🔴 INVALID CHUNK:", contentItem);
+                  return;
+                }
+
+                const textValue = contentItem.text.value;
+                const index = contentItem.index || 0;
+
+                console.warn(
+                  `🟢 CHUNK TEXT [${index}]: "${textValue.substring(
+                    0,
+                    20
+                  )}..." (${textValue.length} chars)`
+                );
+
+                // Update message state - simplified
+                setMessages((prevMessages) => {
+                  // Clone all messages
+                  const newMessages = [...prevMessages];
+
+                  // Find the last AI message
+                  let lastAIIndex = -1;
+                  for (let i = newMessages.length - 1; i >= 0; i--) {
+                    if (newMessages[i].type === "ai") {
+                      lastAIIndex = i;
+                      break;
+                    }
+                  }
+
+                  // If no AI message found, something is wrong
+                  if (lastAIIndex === -1) {
+                    console.error("No AI message found to update");
+                    return prevMessages;
+                  }
+
+                  // Get current content array
+                  const message = newMessages[lastAIIndex];
+                  let content = [
+                    ...((message.content as TextContentItem[]) || []),
+                  ];
+
+                  // Initialize content if needed
+                  if (content.length === 0) {
+                    content = [{ type: "text", text: { value: "" } }];
+                  }
+
+                  // Make sure index exists in array
+                  while (content.length <= index) {
+                    content.push({ type: "text", text: { value: "" } });
+                  }
+
+                  // Update the content at index
+                  const currentText = content[index].text?.value || "";
+                  content[index] = {
+                    ...content[index],
+                    text: { value: currentText + textValue },
+                  };
+
+                  console.log(
+                    `UI updated message: ${currentText.length} => ${
+                      currentText.length + textValue.length
+                    }`
+                  );
+
+                  // If this is an error message (starts with ⚠️), stop the loading state
+                  if (textValue.startsWith("⚠️")) {
+                    setIsLoading(false);
+                  }
+
+                  // Create new message with updated content
+                  newMessages[lastAIIndex] = {
+                    ...message,
+                    content,
+                  };
+
+                  return newMessages;
+                });
+              },
+              unifiedSystemPrompt, // Use the policy prompt
+              signal
+            );
+
+          // Store the response ID for multi-turn conversation
+          if (responseResult.id) {
+            setPreviousResponseId(responseResult.id);
+          } else {
+            console.warn(
+              "No response ID received, multi-turn conversation may not work"
+            );
+          }
+
+          // Mark streaming complete on the final AI message
+          setMessages((prev) => {
+            const updated = [...prev];
+            for (let i = updated.length - 1; i >= 0; i--) {
+              if (updated[i].type === "ai") {
+                updated[i] = { ...updated[i], streaming: false } as Message;
+                break;
+              }
+            }
+            return updated;
+          });
+
+          // Log the full query/response pair now that streaming is finished
+          console.log(
+            "🌟 Streaming finished - Logging query/response to Redis",
+            {
+              sessionId: currentSessionIdRef.current,
+            }
+          );
+          try {
+            await logQueryResponse(
+              message,
+              responseResult.text,
+              "anonymous",
+              currentSessionIdRef.current
+            );
+            console.log("🌟 logQueryResponse completed");
+          } catch (logError) {
+            console.error("Failed to log query/response:", logError);
+          }
+        } catch (error) {
+          // Check if this was aborted on purpose
+          if (error instanceof Error && error.name === "AbortError") {
+            return;
+          }
+
+          console.error("Error getting response from createResponse:", error);
+          setError("Failed to get a response. Please try again.");
+
+          // Update the AI message with an error
+          setMessages((prev) => {
+            const updatedMessages = [...prev];
+
+            // Find the last AI message
+            let lastAIIndex = -1;
+            for (let i = updatedMessages.length - 1; i >= 0; i--) {
+              if (updatedMessages[i].type === "ai") {
+                lastAIIndex = i;
+                break;
+              }
+            }
+
+            if (lastAIIndex >= 0) {
+              updatedMessages[lastAIIndex].content = [
+                {
+                  type: "text",
+                  text: {
+                    value:
+                      "Sorry, there was an error processing your request. Please try again later.",
+                  },
+                },
+              ];
+            }
+            return updatedMessages;
+          });
+        } finally {
+          setIsLoading(false);
+        }
       }
     } else {
       console.warn("handleSend skipped: Input empty or already loading");
+      if (isLoading) setIsLoading(false); // Ensure loading is reset if skipped
     }
   };
 
@@ -734,34 +762,36 @@ This will help us improve the Digital Assistant.`,
 
   // Function to start the feedback survey per original instructions
   const startFeedback = () => {
-    // Reset state but don't use handleNewChat to avoid showing welcome message
-    setIsLoading(false);
+    // Close mobile help panel if it's open
+    if (helpPanelOpen) {
+      setHelpPanelOpen(false);
+    }
+
+    setIsLoading(true); // Set loading briefly
     setInput("");
     setError(null);
-    setPreviousResponseId(undefined);
+    setPreviousResponseId(undefined); // No AI conversation history for this
     setFeedbackAnswers(null);
+    feedbackThankYouShown.current = false;
 
-    // Switch to feedback mode
     setMode("feedback");
+    setFeedbackQuestionNumber(0);
+    setCollectedAnswers([]);
 
-    // Initialize with a thank you message instead of the standard welcome
+    const firstQuestionText = feedbackSurveyQuestions[0];
     setMessages([
+      // No initial "Thank you for taking this survey..." message from AI
+      // User will just see the first question directly
       {
         type: "ai",
-        content: [
-          {
-            type: "text",
-            text: {
-              value:
-                "Thank you for taking this survey. Click the button below to begin.",
-            },
-          },
-        ],
+        content: [{ type: "text", text: { value: firstQuestionText } }],
       },
     ]);
+    setTimeout(() => setIsLoading(false), 100); // Stop loading after first Q is set
   };
 
-  // Update the useEffect hook for feedbackAnswers to use the simplified logger
+  // useEffect hook for feedbackAnswers (for logging and final thank you message)
+  // This existing hook should now work correctly when setFeedbackAnswers is called
   useEffect(() => {
     if (feedbackAnswers) {
       console.log("📊 Feedback state updated:", feedbackAnswers);
@@ -791,8 +821,7 @@ Your responses have been recorded:
 - **Liked:** ${feedbackAnswers.q2}
 - **Frustrated:** ${feedbackAnswers.q3}
 - **Feature Request:** ${feedbackAnswers.q4}
-- **Recommendation:** ${feedbackAnswers.q5}
-- **Additional Comments:** ${feedbackAnswers.q6}
+- **Additional Comments:** ${feedbackAnswers.q5}
 
 This will help us improve the Digital Assistant.`,
                 },
@@ -953,11 +982,6 @@ This will help us improve the Digital Assistant.`,
                       let messageContentElement: React.ReactNode = null;
 
                       // Check if this is the first message in feedback mode and add a special button
-                      const isFirstFeedbackMessage =
-                        mode === "feedback" &&
-                        index === 0 &&
-                        message.type === "ai" &&
-                        !isLoading;
 
                       if (message.type === "user") {
                         // User message content is always a string
@@ -1079,12 +1103,8 @@ This will help us improve the Digital Assistant.`,
                                         {json.q4}
                                       </li>
                                       <li>
-                                        <strong>Recommendation:</strong>{" "}
-                                        {json.q5}
-                                      </li>
-                                      <li>
                                         <strong>Additional Comments:</strong>{" "}
-                                        {json.q6}
+                                        {json.q5}
                                       </li>
                                     </ul>
                                     <p>
@@ -1217,31 +1237,6 @@ This will help us improve the Digital Assistant.`,
                               </div>
                             );
                           }
-                        }
-
-                        // Add survey start button if this is the first message in feedback mode
-                        if (isFirstFeedbackMessage && messages.length === 1) {
-                          const content = aiContent
-                            .filter((item) => item.type === "text")
-                            .map((item) => item.text.value)
-                            .join("\n");
-
-                          messageContentElement = (
-                            <div>
-                              <p className="whitespace-pre-wrap">{content}</p>
-                              <div className="mt-4">
-                                <Button
-                                  className="bg-mha-pink hover:bg-mha-pink-dark text-white"
-                                  onClick={() => {
-                                    // Send message to start the survey
-                                    handleSend("start");
-                                  }}
-                                >
-                                  Let's start the survey!
-                                </Button>
-                              </div>
-                            </div>
-                          );
                         }
                       }
 

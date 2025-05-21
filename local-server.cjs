@@ -5,6 +5,8 @@ const {
   handleQueryLog,
   handleAdminFeedback,
   handleAdminLogs,
+  handleClearQueryLogs,
+  handleClearFeedbackLogs,
 } = require("./api/handlers.js");
 
 const app = express();
@@ -35,6 +37,18 @@ app.get("/api/admin/feedback", async (req, res) => {
 // Admin logs endpoint
 app.get("/api/admin/logs", async (req, res) => {
   const result = await handleAdminLogs(req.headers.authorization);
+  return res.status(result.status).json(result.body);
+});
+
+// Admin clear query logs endpoint
+app.post("/api/admin/clear-query-logs", async (req, res) => {
+  const result = await handleClearQueryLogs(req.headers.authorization);
+  return res.status(result.status).json(result.body);
+});
+
+// Endpoint to clear feedback logs
+app.post("/api/admin/clear-feedback-logs", async (req, res) => {
+  const result = await handleClearFeedbackLogs(req.headers.authorization);
   return res.status(result.status).json(result.body);
 });
 
