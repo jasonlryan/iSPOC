@@ -162,7 +162,7 @@ app.post("/api/log", async (req, res) => {
       sanitizeForCSV(logEntry.userId),
       sanitizeForCSV(logEntry.sessionId),
       sanitizeForCSV(logEntry.query),
-      sanitizeForCSV(logEntry.response.substring(0, 500)), // Truncate response to avoid huge logs
+      sanitizeForCSV(logEntry.response),
     ].join(",");
 
     // Store in Redis KV
